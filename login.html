@@ -35,7 +35,7 @@
 
     <div class="demo-box">
       <strong>🎯 Try Demo Account:</strong><br/>
-      Email: <strong>rahim@demo.com</strong><br/>
+      Email: <strong><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="d1a3b0b9b8bc91b5b4bcbeffb2bebc">[email&#160;protected]</a></strong><br/>
       Password: <strong>demo123</strong>
     </div>
   </div>
@@ -87,7 +87,7 @@
 </div>
 
 <div id="toast-container"></div>
-<script src="js/main.js"></script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="js/main.js"></script>
 <script src="js/auth.js"></script>
 <script>
 seedData();
@@ -139,15 +139,4 @@ function doSignup() {
 document.addEventListener('keydown', e => {
   if (e.key !== 'Enter') return;
   if (document.getElementById('form-login').style.display !== 'none') doLogin();
-  else doSignup();
-});
-
-// Toast container init
-if (!document.getElementById('toast-container')) {
-  const tc = document.createElement('div');
-  tc.id = 'toast-container';
-  document.body.appendChild(tc);
-}
-</script>
-</body>
-</html>
+  else d
