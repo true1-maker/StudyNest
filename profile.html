@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Profile — StudyNest</title>
+  <link rel="stylesheet" href="css/style.css"/>
+</head>
+<body>
+<div id="navbar"></div>
+
+<!-- PROFILE HERO -->
+<div class="profile-hero-section">
+  <div class="container">
+    <div class="profile-info">
+      <div class="avatar avatar-xl" id="p-avatar" style="background:#2563EB;border:4px solid rgba(255,255,255,.25)">?</div>
+      <div>
+        <div class="profile-name-big" id="p-name">Loading…</div>
+        <div class="profile-inst" id="p-inst"></div>
+        <div class="profile-stats-strip">
+          <div>
+            <div class="p-stat-num" id="ps-notes">0</div>
+            <div class="p-stat-label">Notes</div>
+          </div>
+          <div>
+            <div class="p-stat-num" id="ps-questions">0</div>
+            <div class="p-stat-label">Questions</div>
+          </div>
+          <div>
+            <div class="p-stat-num" id="ps-answers">0</div>
+            <div class="p-stat-label">Answers</div>
+          </div>
+          <div>
+            <div class="p-stat-num" id="ps-points" style="color:#93C5FD">0</div>
+            <div class="p-stat-label">Points ⭐</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PROFILE BODY -->
+<div class="container profile-body-wrap" style="padding-bottom:60px">
+  <div id="not-logged-in" style="display:none">
+    <div class="profile-main-card text-center" style="padding:48px 20px">
+      <div style="font-size:3rem;margin-bottom:16px">🔒</div>
+      <h2 style="font-weight:800;margin-bottom:8px">Please Login First</h2>
+      <p class="text-muted" style="margin-bottom:24px">You need an account to view your profile.</p>
+      <a href="login.html" class="btn btn-primary btn-lg">Login / Create Account</a>
+    </div>
+  </div>
+
+  <div id="profile-content" style="display:none">
+    <div class="profile-main-card">
+
+      <!-- TABS -->
+      <div class="profile-tabs">
+        <button class="p-tab active" onclick="switchTab('overview')">📊 Overview</button>
+        <button class="p-tab" onclick="switchTab('notes')">📚 My Notes</button>
+        <button class="p-tab" onclick="switchTab('questions')">❓ My Questions</button>
+        <button class="p-tab" onclick="switchTab('quizzes')">📝 Quiz History</button>
+        <button class="p-tab" onclick="switchTab('edit')">✏️ Edit Profile</button>
+      </div>
+
+      <!-- OVERVIEW TAB -->
+      <div id="tab-overview">
+        <div class="three-col" style="margin-bottom:24px">
+          <div style="background:var(--primary-lt);border:1px solid var(--primary-mid);border-radius:var(--radius);padding:20px;text-align:center">
+            <div style="font-size:2rem;font-weight:800;color:var(--primary)" id="ov-notes">0</div>
+            <div style="font-size:.78rem;color:var(--text-3);margin-top:4px">Notes Uploaded</div>
+          </div>
+          <div style="background:var(--green-lt);border:1px solid #A7F3D0;border-radius:var(--radius);padding:20px;text-align:center">
+            <div style="font-size:2rem;font-weight:800;color:var(--green)" id="ov-ans">0</div>
+            <div style="font-size:.78rem;color:var(--text-3);margin-top:4px">Answers Given</div>
+          </div>
+          <div style="background:var(--amber-lt);border:1px solid #FDE68A;border-radius:var(--radius);padding:20px;text-align:center">
+            <div style="font-size:2rem;font-weight:800;color:var(--amber)" id="ov-pts">0</div>
+            <div style="font-size:.78rem;color:var(--text-3);margin-top:4px">Total Points ⭐</div>
+          </div>
+        </div>
+
+        <!-- Points breakdown -->
+        <div class="card" style="margin-bottom:20px">
+          <h3 style="font-weight:700;font-size:.95rem;margin-bottom:14px">⭐ How to Earn Points</h3>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--bg);border-radius:var(--radius-sm)">
+              <span style="font-size:.85rem">📤 Upload a Note</span>
+              <span class="badge badge-green">+10 pts</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--bg);border-radius:var(--radius-sm)">
+              <span style="font-size:.85rem">❓ Ask a Question</span>
+              <span class="badge badge-blue">+5 pts</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--bg);border-radius:var(--radius-sm)">
+              <span style="font-size:.85rem">💬 Answer a Question</span>
+              <span class="badge badge-blue">+3 pts</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--bg);border-radius:var(--radius-sm)">
+              <span style="font-size:.85rem">📝 Create a Quiz</span>
+              <span class="badge badge-green">+10 pts</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--bg);border-radius:var(--radius-sm)">
+              <span style="font-size:.85rem">👍 Get upvote on answer</span>
+              <span class="badge badge-amber">+1 pt</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--bg);border-radius:var(--radius-sm)">
+              <span style="font-size:.85rem">❤️ Note gets liked</span>
+              <span class="badge badge-amber">+1 pt</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Leaderboard rank -->
+        <div class="card">
+          <h3 style="font-weight:700;font-size:.95rem;margin-bottom:14px">🏆 Leaderboard</h3>
+          <div id="ov-leaderboard"></div>
+        </div>
+      </div>
+
+      <!-- MY NOTES TAB -->
+      <div id="tab-notes" style="display:none">
+        <div id="my-notes-list"></div>
+      </div>
+
+      <!-- MY QUESTIONS TAB -->
+      <div id="tab-questions" style="display:none">
+        <div id="my-questions-list"></div>
+      </div>
+
+      <!-- QUIZ HISTORY TAB -->
+      <div id="tab-quizzes" style="display:none">
+        <div id="my-quiz-history"></div>
+      </div>
+
+      <!-- EDIT PROFILE TAB -->
+      <div id="tab-edit" style="display:none">
+        <div style="max-width:480px">
+          <div class="form-group">
+            <label class="form-label">Full Name</label>
+            <input class="form-control" id="e-name" placeholder="Your full name"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Institution</label>
+            <input class="form-control" id="e-inst" placeholder="e.g. Dhaka College, BUET"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Class / Year</label>
+            <select class="form-control" id="e-class">
+              <option value="">Select class</option>
+              <option>Class 6</option><option>Class 7</option><option>Class 8</option>
+              <option>Class 9</option><option>Class 10</option><option>Class 11</option>
+              <option>Class 12</option><option>University 1st Year</option>
+              <option>University 2nd Year</option><option>University 3rd Year</option>
+              <option>University 4th Year</option>
+            </select>
+          </div>
+          <div class="divider"></div>
+          <div class="form-group">
+            <label class="form-label">Change Password</label>
+            <input class="form-control" type="password" id="e-oldpass" placeholder="Current password" style="margin-bottom:8px"/>
+            <input class="form-control" type="password" id="e-newpass" placeholder="New password (min 6 chars)"/>
+          </div>
+          <div class="form-error" id="e-err"></div>
+          <div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap">
+            <button class="btn btn-primary" onclick="saveProfile()">💾 Save Changes</button>
+            <button class="btn btn-red" onclick="confirmDeleteAccount()">🗑 Delete Account</button>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- end profile-main-card -->
+  </div><!-- end profile-content -->
+</div>
+
+<footer class="footer">© 2025 StudyNest</footer>
+<div id="toast-container"></div>
+
+<script src="js/main.js"></script>
+<script src="js/auth.js"></script>
+<script>
+initApp('profile');
+
+let currentU = null;
+
+function loadProfile() {
+  currentU = getCurrentUser();
+
+  if (!currentU) {
+    document.getElementById('not-logged-in').style.display = 'block';
+    document.getElementById('profile-content').style.display = 'none';
+    return;
+  }
+
+  document.getElementById('not-logged-in').style.display = 'none';
+  document.getElementById('profile-content').style.display = 'block';
+
+  // Avatar & hero
+  document.getElementById('p-avatar').textContent = initial(currentU.name);
+  document.getElementById('p-avatar').style.background = avatarColor(currentU.id);
+  document.getElementById('p-name').textContent = currentU.name;
+  document.getElementById('p-inst').textContent =
+    [currentU.class, currentU.institution].filter(Boolean).join(' · ') || 'Student';
+
+  // Compute stats
+  const allNotes     = getNotes().filter(n => n.uploaderId === currentU.id);
+  const allQuestions = getQuestions().filter(q => q.askerId === currentU.id);
+  const allAnswers   = getQuestions().flatMap(q => q.answers).filter(a => a.userId === currentU.id);
+  const pts          = currentU.points || 0;
+
+  document.getElementById('ps-notes').textContent     = allNotes.length;
+  document.getElementById('ps-questions').textContent = allQuestions.length;
+  document.getElementById('ps-answers').textContent   = allAnswers.length;
+  document.getElementById('ps-points').textContent    = pts;
+  document.getElementById('ov-notes').textContent     = allNotes.length;
+  document.getElementById('ov-ans').textContent       = allAnswers.length;
+  document.getElementById('ov-pts').textContent       = pts;
+
+  // Edit form prefill
+  document.getElementById('e-name').value  = currentU.name || '';
+  document.getElementById('e-inst').value  = currentU.institution || '';
+  document.getElementById('e-class').value = currentU.class || '';
+
+  renderLeaderboard();
+  renderMyNotes(allNotes);
+  renderMyQuestions(allQuestions);
+  renderQuizHistory();
+}
+
+function renderLeaderboard() {
+  const users  = getUsers().sort((a,b) => (b.points||0)-(a.points||0));
+  const medals = ['🥇','🥈','🥉','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣','9️⃣','🔟'];
+  const myRank = users.findIndex(u => u.id === currentU.id) + 1;
+  const el     = document.getElementById('ov-leaderboard');
+
+  let html = myRank > 0
+    ? `<div style="margin-bottom:14px;padding:10px 14px;background:var(--primary-lt);border:1px solid var(--primary-mid);border-radius:var(--radius-sm);font-size:.85rem;font-weight:700;color:var(--primary)">
+        Your rank: <strong>#${myRank}</strong> out of ${users.length} students
+       </div>` : '';
+
+  users.slice(0,10).forEach((u,i) => {
+    const isMe = u.id === currentU.id;
+    html += `<div class="lb-row" style="${isMe?'border:2px solid var(--primary);background:var(--primary-lt)':''}">
+      <span class="lb-rank">${medals[i]||i+1}</span>
+      <div class="avatar avatar-sm" style="background:${avatarColor(u.id)}">${initial(u.name)}</div>
+      <div class="lb-info">
+        <span class="lb-name">${escHtml(u.name)} ${isMe?'<span style="font-size:.65rem;color:var(--primary)">(You)</span>':''}</span>
+        <span class="lb-inst">${escHtml(u.institution||'Student')}</span>
+      </div>
+      <span class="lb-pts">${u.points||0} pts</span>
+    </div>`;
+  });
+  el.innerHTML = html || '<p class="text-muted">No users yet.</p>';
+}
+
+function renderMyNotes(notes) {
+  const el = document.getElementById('my-notes-list');
+  if (!notes.length) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div><h3>No notes yet</h3><p><a href="notes.html">Upload your first note!</a></p></div>`;
+    return;
+  }
+  el.innerHTML = notes.map(n => `
+    <div class="note-card" style="margin-bottom:12px">
+      <div class="note-card-top">
+        <div class="note-type-icon note-type-text" style="font-size:1.1rem">${n.type==='link'?'🔗':'📝'}</div>
+        <div style="flex:1;min-width:0">
+          <div class="note-card-title">${escHtml(n.title)}</div>
+          <span class="badge badge-blue" style="margin-top:4px">${escHtml(n.subject)}</span>
+        </div>
+      </div>
+      <p class="note-card-desc">${escHtml(n.description)}</p>
+      <div class="note-card-meta">
+        <span>📅 ${formatDate(n.date)}</span>
+        <span>👁 ${n.views||0} views</span>
+        <span>❤️ ${(n.likes||[]).length} likes</span>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <a href="notes.html?id=${n.id}" class="btn btn-outline btn-sm">👁 View</a>
+        <button class="btn btn-red btn-sm" onclick="deleteNote('${n.id}')">🗑 Delete</button>
+      </div>
+    </div>`).join('');
+}
+
+function renderMyQuestions(questions) {
+  const el = document.getElementById('my-questions-list');
+  if (!questions.length) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">🤔</div><h3>No questions yet</h3><p><a href="questions.html">Ask your first question!</a></p></div>`;
+    return;
+  }
+  el.innerHTML = questions.map(q => `
+    <div class="mini-card" style="display:block;padding:16px;margin-bottom:10px;border-radius:var(--radius)">
+      <div class="mini-card-title" style="margin-bottom:8px">${escHtml(q.title)}</div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+        <span class="badge badge-blue">${escHtml(q.subject)}</span>
+        <span class="badge ${q.answers.length?'badge-green':'badge-gray'}">${q.answers.length} answer${q.answers.length!==1?'s':''}</span>
+        <span style="font-size:.75rem;color:var(--text-3)">${formatDate(q.date)}</span>
+      </div>
+      <div style="display:flex;gap:8px">
+        <a href="questions.html?id=${q.id}" class="btn btn-outline btn-sm">👁 View</a>
+        <button class="btn btn-red btn-sm" onclick="deleteQuestion('${q.id}')">🗑 Delete</button>
+      </div>
+    </div>`).join('');
+}
+
+function renderQuizHistory() {
+  const el      = document.getElementById('my-quiz-history');
+  const results = getQuizResults().filter(r => r.userId === currentU.id);
+  const quizzes = getQuizzes();
+
+  if (!results.length) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">📝</div><h3>No quiz attempts yet</h3><p><a href="quiz.html">Take a quiz!</a></p></div>`;
+    return;
+  }
+
+  // Group by quiz
+  const grouped = {};
+  results.forEach(r => {
+    if (!grouped[r.quizId]) grouped[r.quizId] = [];
+    grouped[r.quizId].push(r);
+  });
+
+  let html = '';
+  Object.entries(grouped).forEach(([qzId, attempts]) => {
+    const qz   = quizzes.find(q => q.id === qzId);
+    const name = qz ? qz.title : 'Deleted Quiz';
+    const best = Math.max(...attempts.map(a => a.score));
+    const tot  = attempts[0].total;
+    const pct  = Math.round((best/tot)*100);
+    const sorted = [...attempts].sort((a,b) => b.date - a.date);
+
+    html += `
+    <div class="card" style="margin-bottom:14px">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+        <div>
+          <div style="font-weight:700;font-size:.95rem">${escHtml(name)}</div>
+          <div style="font-size:.75rem;color:var(--text-3);margin-top:3px">${attempts.length} attempt${attempts.length!==1?'s':''}</div>
+        </div>
+        <div style="text-align:right">
+          <span class="badge ${pct>=80?'badge-green':pct>=50?'badge-amber':'badge-red'}">Best: ${best}/${tot} (${pct}%)</span>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        ${sorted.slice(0,5).map((r,i) => {
+          const p = Math.round((r.score/r.total)*100);
+          const barW = p + '%';
+          return `<div style="display:flex;align-items:center;gap:10px;font-size:.8rem">
+            <span style="width:70px;color:var(--text-3)">${formatDate(r.date)}</span>
+            <div style="flex:1;height:8px;background:var(--border);border-radius:4px;overflow:hidden">
+              <div style="width:${barW};height:100%;background:${p>=80?'var(--green)':p>=50?'var(--amber)':'var(--red)'};border-radius:4px"></div>
+            </div>
+            <span style="width:60px;text-align:right;font-weight:700">${r.score}/${r.total}</span>
+          </div>`;
+        }).join('')}
+      </div>
+      ${qz ? `<div style="margin-top:12px"><a href="quiz.html" class="btn btn-outline btn-sm">🔄 Retry Quiz</a></div>` : ''}
+    </div>`;
+  });
+  el.innerHTML = html;
+}
+
+// ---------- TAB SWITCH ----------
+function switchTab(name) {
+  const tabs = ['overview','notes','questions','quizzes','edit'];
+  tabs.forEach(t => {
+    document.getElementById('tab-'+t).style.display = t===name ? 'block' : 'none';
+    document.querySelectorAll('.p-tab').forEach((btn, i) => {
+      btn.classList.toggle('active', tabs[i] === name);
+    });
+  });
+}
+
+// ---------- ACTIONS ----------
+function deleteNote(id) {
+  if (!confirm('Delete this note? This cannot be undone.')) return;
+  saveNotes(getNotes().filter(n => n.id !== id));
+  toast('Note deleted.', 'info');
+  loadProfile();
+}
+
+function deleteQuestion(id) {
+  if (!confirm('Delete this question? All answers will be lost.')) return;
+  saveQuestions(getQuestions().filter(q => q.id !== id));
+  toast('Question deleted.', 'info');
+  loadProfile();
+}
+
+function saveProfile() {
+  const name    = document.getElementById('e-name').value.trim();
+  const inst    = document.getElementById('e-inst').value.trim();
+  const cls     = document.getElementById('e-class').value;
+  const oldpass = document.getElementById('e-oldpass').value;
+  const newpass = document.getElementById('e-newpass').value;
+  const errEl   = document.getElementById('e-err');
+  errEl.classList.remove('show');
+
+  if (!name) { errEl.textContent='Name cannot be empty.'; errEl.classList.add('show'); return; }
+
+  const updates = { name, institution: inst, class: cls };
+
+  // Password change
+  if (oldpass || newpass) {
+    if (!oldpass) { errEl.textContent='Please enter your current password.'; errEl.classList.add('show'); return; }
+    if (oldpass !== currentU.password) { errEl.textContent='Current password is incorrect.'; errEl.classList.add('show'); return; }
+    if (newpass.length < 6) { errEl.textContent='New password must be at least 6 characters.'; errEl.classList.add('show'); return; }
+    updates.password = newpass;
+  }
+
+  updateUser(updates);
+
+  // Also update name in notes and questions
+  if (name !== currentU.name) {
+    const notes = getNotes().map(n => n.uploaderId === currentU.id ? {...n, uploaderName: name} : n);
+    saveNotes(notes);
+    const qs = getQuestions().map(q => q.askerId === currentU.id ? {...q, askerName: name} : q);
+    saveQuestions(qs);
+  }
+
+  toast('Profile updated successfully! ✅', 'success');
+  document.getElementById('e-oldpass').value = '';
+  document.getElementById('e-newpass').value = '';
+  loadProfile();
+}
+
+function confirmDeleteAccount() {
+  const confirmed = confirm('⚠️ Are you sure you want to delete your account?\n\nThis will permanently delete your profile. Your notes and questions will remain on the platform.');
+  if (!confirmed) return;
+  const pass = prompt('Enter your password to confirm:');
+  if (!pass) return;
+  if (pass !== currentU.password) { toast('Incorrect password. Account not deleted.', 'error'); return; }
+  const users = getUsers().filter(u => u.id !== currentU.id);
+  saveUsers(users);
+  localStorage.removeItem('sn_current');
+  toast('Account deleted. Redirecting…', 'info');
+  setTimeout(() => location.href = 'index.html', 1200);
+}
+
+loadProfile();
+</script>
+</body>
+</html>
