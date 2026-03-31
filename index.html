@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>StudyNest — Student Collaboration Platform</title>
+  <link rel="stylesheet" href="css/style.css"/>
+</head>
+<body>
+<div id="navbar"></div>
+
+<section class="hero">
+  <div class="container">
+    <div class="hero-inner">
+      <div>
+        <div class="hero-eyebrow">🇧🇩 Made for Bangladeshi Students</div>
+        <h1 class="hero-title">Share Notes.<br>Ask Questions.<br><span class="accent">Learn Together.</span></h1>
+        <p class="hero-sub">Upload class notes, ask questions, take quizzes — everything a student needs in one place. Completely free.</p>
+        <div class="hero-cta">
+          <a href="notes.html" class="btn btn-primary btn-lg">📚 Browse Notes</a>
+          <a href="questions.html" class="btn btn-outline btn-lg">❓ Ask a Question</a>
+        </div>
+      </div>
+      <div class="hero-stats">
+        <div class="stat-card"><span class="stat-num" id="sn">0</span><span class="stat-label">Notes Shared</span></div>
+        <div class="stat-card"><span class="stat-num" id="sq">0</span><span class="stat-label">Questions</span></div>
+        <div class="stat-card"><span class="stat-num" id="su">0</span><span class="stat-label">Students</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="section-header"><h2 class="section-title">📖 Browse by Subject</h2></div>
+    <div class="subjects-grid" id="subj-grid"></div>
+  </div>
+</section>
+
+<section class="section" style="padding-top:0">
+  <div class="container">
+    <div class="two-col">
+      <div>
+        <div class="section-header">
+          <h2 class="section-title">🔥 Latest Questions</h2>
+          <a href="questions.html" class="view-all">View all →</a>
+        </div>
+        <div id="latest-q"></div>
+      </div>
+      <div>
+        <div class="section-header">
+          <h2 class="section-title">📄 Latest Notes</h2>
+          <a href="notes.html" class="view-all">View all →</a>
+        </div>
+        <div id="latest-n"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section leaderboard-section">
+  <div class="container">
+    <div class="section-header" style="margin-bottom:24px">
+      <h2 class="section-title">🏆 Top Contributors</h2>
+      <a href="profile.html" class="view-all">My profile →</a>
+    </div>
+    <div class="lb-grid" id="lb"></div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <h2 class="section-title text-center" style="margin-bottom:32px">How StudyNest Works</h2>
+    <div class="three-col">
+      <div class="card text-center" style="padding:32px 20px">
+        <div style="font-size:2.5rem;margin-bottom:14px">📤</div>
+        <h3 style="font-weight:700;margin-bottom:8px">Share Your Notes</h3>
+        <p class="text-muted" style="font-size:.85rem">Upload class notes and study materials. Earn 10 points for every note you share with the community.</p>
+      </div>
+      <div class="card text-center" style="padding:32px 20px">
+        <div style="font-size:2.5rem;margin-bottom:14px">❓</div>
+        <h3 style="font-weight:700;margin-bottom:8px">Ask &amp; Answer</h3>
+        <p class="text-muted" style="font-size:.85rem">Post your questions and help others with their doubts. Earn points for every answer you provide.</p>
+      </div>
+      <div class="card text-center" style="padding:32px 20px">
+        <div style="font-size:2.5rem;margin-bottom:14px">📝</div>
+        <h3 style="font-weight:700;margin-bottom:8px">Test Yourself</h3>
+        <p class="text-muted" style="font-size:.85rem">Take timed MCQ quizzes on Physics, Math, ICT and more. Track your score and improve every day.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">© 2025 StudyNest — Free education platform for Bangladeshi students 🇧🇩</footer>
+<div id="toast-container"></div>
+
+<script src="js/main.js"></script>
+<script src="js/auth.js"></script>
+<script>
+initApp('home');
+const notes = getNotes(), questions = getQuestions(), users = getUsers();
+document.getElementById('sn').textContent = notes.length;
+document.getElementById('sq').textContent = questions.length;
+document.getElementById('su').textContent = users.length;
+
+// Subjects
+const colors = ['#EFF6FF','#F5F3FF','#ECFDF5','#FFF7ED','#FEF2F2','#F0FDF4','#FEFCE8','#F0F9FF','#FDF4FF','#F1F5F9'];
+const sg = document.getElementById('subj-grid');
+SUBJECTS.forEach((s,i) => {
+  const c = notes.filter(n=>n.subject===s).length + questions.filter(q=>q.subject===s).length;
+  sg.innerHTML += `<a href="notes.html?subj=${encodeURIComponent(s)}" class="subject-card" style="background:${colors[i]}">
+    <span class="subject-icon">${SUBJ_ICONS[s]||'📚'}</span>
+    <span class="subject-name">${s}</span>
+    <span class="subject-count">${c} items</span>
+  </a>`;
+});
+
+// Latest questions
+const lqEl = document.getElementById('latest-q');
+const latestQ = [...questions].sort((a,b)=>b.date-a.date).slice(0,5);
+if (!latestQ.length) {
+  lqEl.innerHTML = `<div class="empty-state"><div class="empty-icon">❓</div><p>No questions yet. <a href="questions.html">Be first!</a></p></div>`;
+} else {
+  latestQ.forEach(q => {
+    lqEl.innerHTML += `<a href="questions.html?id=${q.id}" class="mini-card">
+      <div class="mini-card-title">${escHtml(q.title)}</div>
+      <div class="mini-card-meta">
+        <span class="badge badge-blue">${escHtml(q.subject)}</span>
+        <span class="meta-text">${q.answers.length} ans · ${formatDate(q.date)}</span>
+      </div>
+    </a>`;
+  });
+}
+
+// Latest notes
+const lnEl = document.getElementById('latest-n');
+const latestN = [...notes].sort((a,b)=>b.date-a.date).slice(0,5);
+if (!latestN.length) {
+  lnEl.innerHTML = `<div class="empty-state"><div class="empty-icon">📄</div><p>No notes yet. <a href="notes.html">Upload one!</a></p></div>`;
+} else {
+  latestN.forEach(n => {
+    lnEl.innerHTML += `<a href="notes.html?id=${n.id}" class="mini-card">
+      <div class="mini-card-title">${escHtml(n.title)}</div>
+      <div class="mini-card-meta">
+        <span class="badge badge-green">${escHtml(n.subject)}</span>
+        <span class="meta-text">by ${escHtml(n.uploaderName)} · ${formatDate(n.date)}</span>
+      </div>
+    </a>`;
+  });
+}
+
+// Leaderboard
+const lbEl = document.getElementById('lb');
+const medals = ['🥇','🥈','🥉','4️⃣','5️⃣'];
+[...users].sort((a,b)=>(b.points||0)-(a.points||0)).slice(0,5).forEach((u,i) => {
+  lbEl.innerHTML += `<div class="lb-row">
+    <span class="lb-rank">${medals[i]}</span>
+    <div class="avatar avatar-sm" style="background:${avatarColor(u.id)}">${initial(u.name)}</div>
+    <div class="lb-info">
+      <span class="lb-name">${escHtml(u.name)}</span>
+      <span class="lb-inst">${escHtml(u.institution||'Student')}</span>
+    </div>
+    <span class="lb-pts">${u.points||0} pts</span>
+  </div>`;
+});
+if (!users.length) lbEl.innerHTML = `<p class="text-muted">No contributors yet.</p>`;
+</script>
+</body>
+</html>

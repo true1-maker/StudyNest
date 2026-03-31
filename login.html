@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Login — StudyNest</title>
+  <link rel="stylesheet" href="css/style.css"/>
+</head>
+<body class="auth-page">
+
+<div class="auth-card">
+  <div class="auth-logo">
+    <div class="auth-logo-icon">📚</div>
+    <div class="auth-logo-text">StudyNest</div>
+    <div class="auth-logo-sub">Student Collaboration Platform</div>
+  </div>
+
+  <div class="auth-tabs">
+    <button class="auth-tab active" id="tab-login" onclick="switchTab('login')">Login</button>
+    <button class="auth-tab" id="tab-signup" onclick="switchTab('signup')">Create Account</button>
+  </div>
+
+  <!-- LOGIN FORM -->
+  <div id="form-login">
+    <div class="form-group">
+      <label class="form-label">Email Address</label>
+      <input class="form-control" type="email" id="l-email" placeholder="your@email.com" autocomplete="email"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Password</label>
+      <input class="form-control" type="password" id="l-pass" placeholder="Enter password" autocomplete="current-password"/>
+    </div>
+    <div class="form-error" id="l-err"></div>
+    <button class="btn btn-primary btn-full btn-lg" style="margin-top:8px" onclick="doLogin()">Login →</button>
+
+    <div class="demo-box">
+      <strong>🎯 Try Demo Account:</strong><br/>
+      Email: <strong>rahim@demo.com</strong><br/>
+      Password: <strong>demo123</strong>
+    </div>
+  </div>
+
+  <!-- SIGNUP FORM -->
+  <div id="form-signup" style="display:none">
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Full Name *</label>
+        <input class="form-control" type="text" id="s-name" placeholder="Your name"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Class / Year</label>
+        <select class="form-control" id="s-class">
+          <option value="">Select class</option>
+          <option>Class 6</option><option>Class 7</option><option>Class 8</option>
+          <option>Class 9</option><option>Class 10</option><option>Class 11</option>
+          <option>Class 12</option><option>University 1st Year</option>
+          <option>University 2nd Year</option><option>University 3rd Year</option>
+          <option>University 4th Year</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Institution</label>
+      <input class="form-control" type="text" id="s-inst" placeholder="e.g. Dhaka College, BUET, RUET"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Email Address *</label>
+      <input class="form-control" type="email" id="s-email" placeholder="your@email.com" autocomplete="email"/>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Password *</label>
+        <input class="form-control" type="password" id="s-pass" placeholder="Min. 6 characters"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Confirm Password *</label>
+        <input class="form-control" type="password" id="s-pass2" placeholder="Repeat password"/>
+      </div>
+    </div>
+    <div class="form-error" id="s-err"></div>
+    <button class="btn btn-green btn-full btn-lg" style="margin-top:8px" onclick="doSignup()">Create Account →</button>
+  </div>
+
+  <div style="text-align:center;margin-top:20px;font-size:.8rem;color:var(--text-3)">
+    <a href="index.html" style="color:var(--primary);font-weight:700">← Back to Home</a>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="js/main.js"></script>
+<script src="js/auth.js"></script>
+<script>
+seedData();
+// Redirect if already logged in
+if (getCurrentUser()) location.href = getUrlParam('next') || 'index.html';
+
+function switchTab(t) {
+  document.getElementById('tab-login').classList.toggle('active', t==='login');
+  document.getElementById('tab-signup').classList.toggle('active', t==='signup');
+  document.getElementById('form-login').style.display = t==='login' ? 'block' : 'none';
+  document.getElementById('form-signup').style.display = t==='signup' ? 'block' : 'none';
+}
+
+function showErr(id, msg) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.classList.add('show');
+}
+function clearErr(id) { document.getElementById(id).classList.remove('show'); }
+
+function doLogin() {
+  clearErr('l-err');
+  const email = document.getElementById('l-email').value.trim();
+  const pass  = document.getElementById('l-pass').value;
+  if (!email || !pass) { showErr('l-err','Please fill in all fields.'); return; }
+  const res = login(email, pass);
+  if (!res.ok) { showErr('l-err', res.err); return; }
+  toast('Welcome back, ' + res.user.name + '! 👋');
+  setTimeout(() => location.href = getUrlParam('next') || 'index.html', 800);
+}
+
+function doSignup() {
+  clearErr('s-err');
+  const name  = document.getElementById('s-name').value.trim();
+  const inst  = document.getElementById('s-inst').value.trim();
+  const cls   = document.getElementById('s-class').value;
+  const email = document.getElementById('s-email').value.trim();
+  const pass  = document.getElementById('s-pass').value;
+  const pass2 = document.getElementById('s-pass2').value;
+  if (!name || !email || !pass) { showErr('s-err','Please fill in all required fields.'); return; }
+  if (pass !== pass2) { showErr('s-err','Passwords do not match.'); return; }
+  const res = signup(name, email, pass, inst, cls);
+  if (!res.ok) { showErr('s-err', res.err); return; }
+  toast('Account created! Welcome to StudyNest 🎉', 'success');
+  setTimeout(() => location.href = getUrlParam('next') || 'index.html', 900);
+}
+
+// Enter key support
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  if (document.getElementById('form-login').style.display !== 'none') doLogin();
+  else doSignup();
+});
+
+// Toast container init
+if (!document.getElementById('toast-container')) {
+  const tc = document.createElement('div');
+  tc.id = 'toast-container';
+  document.body.appendChild(tc);
+}
+</script>
+</body>
+</html>
