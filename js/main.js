@@ -412,43 +412,4 @@ Alkane: CₙH₂ₙ₊₂  |  Alkene: CₙH₂ₙ  |  Alkyne: CₙH₂ₙ₋₂`
         { q:'Derivative of sin(x) is:', opts:['-cos(x)','cos(x)','-sin(x)','tan(x)'], correct:1 },
         { q:'∫ eˣ dx = ?', opts:['eˣ + C','eˣ/x + C','xeˣ + C','e⁻ˣ + C'], correct:0 },
         { q:'Value of sin(90°) is:', opts:['0','1','-1','√2/2'], correct:1 },
-        { q:'If f(x) = x³, then f\'(x) = ?', opts:['x²','3x²','3x','x³/3'], correct:1 },
-        { q:'log₁₀(1000) = ?', opts:['1','2','3','4'], correct:2 },
-        { q:'Solve: 2x + 5 = 13, x = ?', opts:['3','4','5','6'], correct:1 },
-      ]
-    },
-    { id:'qz4', title:'Biology — Cell & Genetics', subject:'Biology',
-      creatorId:'u2', creatorName:'Karim Hossain', date: Date.now()-43200e3, timeLimitSecs: 240,
-      questions:[
-        { q:'Which organelle is called the "powerhouse of the cell"?', opts:['Nucleus','Ribosome','Mitochondria','Golgi body'], correct:2 },
-        { q:'DNA stands for:', opts:['Deoxyribonucleic Acid','Diribose Nucleic Acid','Deoxyribose Nitrogen Acid','Double Nucleic Acid'], correct:0 },
-        { q:'Photosynthesis occurs in:', opts:['Mitochondria','Ribosome','Chloroplast','Nucleus'], correct:2 },
-        { q:'How many chromosomes does a normal human cell have?', opts:['23','44','46','48'], correct:2 },
-        { q:'Which blood group is the universal donor?', opts:['A','B','AB','O'], correct:3 },
-      ]
-    },
-  ]);
-
-  saveNotices([
-    { id:'nt1', title:'Welcome to StudyNest! 🎓', content:'StudyNest is a free platform for Bangladeshi students to share notes, ask questions, and practice with quizzes. Upload your class notes to earn points and help your classmates!', type:'info', postedBy:'StudyNest Team', date: Date.now()-432000e3 },
-    { id:'nt2', title:'HSC 2025 Exam Preparation — Start Now!', content:'HSC examinations are approaching. Use StudyNest to share important notes, ask questions, and practice with subject-wise quizzes. Together we can help each other score better. Upload your subject notes today!', type:'important', postedBy:'StudyNest Team', date: Date.now()-172800e3 },
-    { id:'nt3', title:'Points & Leaderboard System Active ⭐', content:'Active contributors earn points: Upload notes → 10 pts | Ask question → 5 pts | Answer a question → 3 pts | Get upvote on answer → 1 pt. Top contributors are shown on the leaderboard on the home page!', type:'info', postedBy:'StudyNest Team', date: Date.now()-86400e3 },
-    { id:'nt4', title:'Quiz Feature Launched 📝', content:'You can now take timed MCQ quizzes on Physics, ICT, Mathematics, and Biology. More subjects coming soon. High scorers will appear on the leaderboard. Try the quizzes from the Quiz section!', type:'info', postedBy:'StudyNest Team', date: Date.now()-21600e3 },
-  ]);
-
-  localStorage.setItem('sn_seeded_v2', '1');
-}
-
-/* ─── APP INIT ───────────────────────────────── */
-
-function initApp(activePage) {
-  seedData();
-  renderNavbar(activePage || '');
-  initScrollTop();
-  // ensure toast container exists
-  if (!document.getElementById('toast-container')) {
-    const tc = document.createElement('div');
-    tc.id = 'toast-container';
-    document.body.appendChild(tc);
-  }
-}
+        { q:'If f(x) = x³, then f\'(x) = ?
