@@ -64,10 +64,19 @@
       <label class="form-label">Details *</label>
       <textarea class="form-control" id="a-desc" rows="5" placeholder="Explain your question clearly. Add what you've already tried…"></textarea>
     </div>
+    <div class="form-group">
+      <label class="form-label">📸 Attach Image <span style="color:var(--text-4);font-weight:400">(optional)</span></label>
+      <input type="file" class="form-control" id="a-image" accept="image/*" onchange="previewQImage(this)"/>
+      <p class="form-hint">Add a photo of your question, diagram, or textbook page. Requires Imgbb API key.</p>
+      <div id="a-img-preview" style="display:none;margin-top:10px">
+        <img id="a-img-preview-img" style="max-width:100%;max-height:160px;border-radius:var(--radius-sm);border:1px solid var(--border)"/>
+        <button onclick="clearQImage()" class="btn btn-ghost btn-sm" style="margin-top:6px">✕ Remove</button>
+      </div>
+    </div>
     <div class="form-error" id="a-err"></div>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:4px">
       <button class="btn btn-ghost" onclick="closeModal('ask-modal')">Cancel</button>
-      <button class="btn btn-primary" onclick="submitQuestion()">Post Question</button>
+      <button class="btn btn-primary" id="ask-submit-btn" onclick="submitQuestion()">Post Question</button>
     </div>
   </div>
 </div>
@@ -75,8 +84,8 @@
 <footer class="footer">© 2025 StudyNest</footer>
 <div id="toast-container"></div>
 
-<script src="js/main.js"></script>
-<script src="js/auth.js"></script>
+<script src="Js/main.js"></script>
+<script src="Js/auth.js"></script>
 <script>
 initApp('questions');
 
@@ -151,6 +160,7 @@ function buildQuestionCard(q, expanded) {
     answersHtml = `
     <div class="question-expand">
       <div class="question-full-desc">${escHtml(q.description)}</div>
+      ${q.imageUrl ? `<div style="margin-bottom:16px"><img src="${escHtml(q.imageUrl)}" style="max-width:100%;border-radius:var(--radius-sm);border:1px solid var(--border)"/></div>` : ''}
       <div class="answers-section">
         <div class="answers-header">${q.answers.length} Answer${q.answers.length!==1?'s':''}</div>
         ${answersBody || `<div class="empty-state" style="padding:24px 0"><div class="empty-icon">💬</div><p>No answers yet. Be the first to help!</p></div>`}
@@ -277,11 +287,29 @@ function openAskModal() {
   if (!requireAuth()) return;
   ['a-title','a-desc','a-tags'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('a-subj').value = '';
+  document.getElementById('a-image').value = '';
+  document.getElementById('a-img-preview').style.display = 'none';
   document.getElementById('a-err').classList.remove('show');
   openModal('ask-modal');
 }
 
-function submitQuestion() {
+function previewQImage(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('a-img-preview').style.display = 'block';
+    document.getElementById('a-img-preview-img').src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearQImage() {
+  document.getElementById('a-image').value = '';
+  document.getElementById('a-img-preview').style.display = 'none';
+}
+
+async function submitQuestion() {
   const u = getCurrentUser();
   if (!u) return;
   const title = document.getElementById('a-title').value.trim();
@@ -295,8 +323,22 @@ function submitQuestion() {
   if (!subj)  { errEl.textContent='Please select a subject.'; errEl.classList.add('show'); return; }
   if (!desc)  { errEl.textContent='Please describe your question.'; errEl.classList.add('show'); return; }
 
+  // Optional image upload
+  let imageUrl = '';
+  const imgFile = document.getElementById('a-image').files[0];
+  if (imgFile) {
+    const btn = document.getElementById('ask-submit-btn');
+    btn.disabled = true;
+    btn.textContent = 'Uploading…';
+    imageUrl = await uploadImageToImgbb(imgFile);
+    btn.disabled = false;
+    btn.textContent = 'Post Question';
+    if (!imageUrl) return;
+  }
+
   addQuestion({
     id: genId(), title, description: desc, subject: subj, tags,
+    imageUrl,
     askerId: u.id, askerName: u.name, date: Date.now(), views: 0, answers: []
   });
   addPoints(u.id, 5);
