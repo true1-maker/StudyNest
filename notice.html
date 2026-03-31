@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Notice Board — StudyNest</title>
+  <link rel="stylesheet" href="css/style.css"/>
+</head>
+<body>
+<div id="navbar"></div>
+
+<!-- PAGE HEADER -->
+<div class="page-header">
+  <div class="container">
+    <div class="page-header-inner">
+      <div>
+        <h1 class="page-title">📢 Notice Board</h1>
+        <p class="page-sub">Important announcements and updates for students</p>
+      </div>
+      <button class="btn btn-primary" onclick="openPostModal()">+ Post Notice</button>
+    </div>
+  </div>
+</div>
+
+<div class="container" style="max-width:760px; padding-bottom:60px">
+
+  <!-- Filter pills -->
+  <div class="filter-bar" id="notice-filter">
+    <button class="filter-pill active" onclick="setFilter(this,'')">All</button>
+    <button class="filter-pill" onclick="setFilter(this,'info')">ℹ️ Info</button>
+    <button class="filter-pill" onclick="setFilter(this,'important')">🔴 Important</button>
+    <button class="filter-pill" onclick="setFilter(this,'warning')">⚠️ Warning</button>
+  </div>
+
+  <div id="notice-list"></div>
+  <div id="notice-empty"></div>
+</div>
+
+<!-- POST NOTICE MODAL -->
+<div class="modal-overlay" id="post-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title">📢 Post a Notice</h2>
+      <button class="modal-close" onclick="closeModal('post-modal')">✕</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Title *</label>
+      <input class="form-control" id="n-title" placeholder="Notice title…"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Type</label>
+      <select class="form-control" id="n-type" style="width:auto">
+        <option value="info">ℹ️ Info</option>
+        <option value="important">🔴 Important</option>
+        <option value="warning">⚠️ Warning</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Content *</label>
+      <textarea class="form-control" id="n-content" rows="5" placeholder="Write the notice content here…"></textarea>
+    </div>
+    <div class="form-error" id="n-err"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:4px">
+      <button class="btn btn-ghost" onclick="closeModal('post-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitNotice()">Post Notice</button>
+    </div>
+  </div>
+</div>
+
+<footer class="footer">© 2025 StudyNest</footer>
+<div id="toast-container"></div>
+
+<script src="js/main.js"></script>
+<script src="js/auth.js"></script>
+<script>
+initApp('notice');
+
+let activeFilter = '';
+
+function setFilter(btn, type) {
+  document.querySelectorAll('#notice-filter .filter-pill').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  activeFilter = type;
+  renderNotices();
+}
+
+function renderNotices() {
+  let notices = getNotices();
+  if (activeFilter) notices = notices.filter(n => n.type === activeFilter);
+  notices.sort((a,b) => b.date - a.date);
+
+  const list  = document.getElementById('notice-list');
+  const empty = document.getElementById('notice-empty');
+  list.innerHTML = '';
+
+  if (!notices.length) {
+    empty.innerHTML = `<div class="empty-state">
+      <div class="empty-icon">📭</div>
+      <h3>No notices yet</h3>
+      <p><a href="#" onclick="openPostModal()">Post the first notice</a></p>
+    </div>`;
+    return;
+  }
+  empty.innerHTML = '';
+
+  const icons = { info:'ℹ️', important:'🔴', warning:'⚠️' };
+  const u = getCurrentUser();
+
+  notices.forEach(n => {
+    const canDelete = u && (u.id === n.postedById);
+    list.innerHTML += `
+    <div class="notice-card" id="nc-${n.id}">
+      <div class="notice-icon ${n.type||'info'}">${icons[n.type]||'ℹ️'}</div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
+          <div class="notice-title">${escHtml(n.title)}</div>
+          ${canDelete ? `<button class="btn btn-ghost btn-sm" onclick="deleteNotice('${n.id}')" style="color:var(--red);flex-shrink:0">🗑</button>` : ''}
+        </div>
+        <div class="notice-content">${escHtml(n.content)}</div>
+        <div class="notice-meta">
+          📌 Posted by <strong>${escHtml(n.postedBy)}</strong> &nbsp;·&nbsp; ${formatDate(n.date)}
+        </div>
+      </div>
+    </div>`;
+  });
+}
+
+function deleteNotice(id) {
+  if (!confirm('Delete this notice?')) return;
+  const notices = getNotices().filter(n => n.id !== id);
+  saveNotices(notices);
+  toast('Notice deleted.', 'info');
+  renderNotices();
+}
+
+function openPostModal() {
+  if (!requireAuth()) return;
+  document.getElementById('n-title').value   = '';
+  document.getElementById('n-content').value = '';
+  document.getElementById('n-type').value    = 'info';
+  document.getElementById('n-err').classList.remove('show');
+  openModal('post-modal');
+}
+
+function submitNotice() {
+  const u = getCurrentUser();
+  if (!u) return;
+  const title   = document.getElementById('n-title').value.trim();
+  const content = document.getElementById('n-content').value.trim();
+  const type    = document.getElementById('n-type').value;
+  const errEl   = document.getElementById('n-err');
+  errEl.classList.remove('show');
+
+  if (!title)   { errEl.textContent = 'Title is required.';   errEl.classList.add('show'); return; }
+  if (!content) { errEl.textContent = 'Content is required.'; errEl.classList.add('show'); return; }
+
+  addNotice({
+    id: genId(), title, content, type,
+    postedBy: u.name, postedById: u.id, date: Date.now()
+  });
+  closeModal('post-modal');
+  toast('Notice posted! 📢', 'success');
+  renderNotices();
+}
+
+renderNotices();
+</script>
+</body>
+</html>
