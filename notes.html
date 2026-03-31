@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Notes — StudyNest</title>
+  <link rel="stylesheet" href="css/style.css"/>
+</head>
+<body>
+<div id="navbar"></div>
+
+<!-- PAGE HEADER -->
+<div class="page-header">
+  <div class="container">
+    <div class="page-header-inner">
+      <div>
+        <h1 class="page-title">📚 Study Notes</h1>
+        <p class="page-sub">Browse and download notes shared by students</p>
+      </div>
+      <button class="btn btn-primary" onclick="openUploadModal()">+ Upload Note</button>
+    </div>
+  </div>
+</div>
+
+<div class="container" style="padding-bottom:60px">
+  <!-- Search bar -->
+  <div style="margin-bottom:16px">
+    <input class="form-control" type="text" id="search-input" placeholder="🔍  Search by title, subject or keyword…" oninput="renderNotes()" style="max-width:500px"/>
+  </div>
+
+  <!-- Subject filter -->
+  <div class="filter-bar" id="subj-filter">
+    <button class="filter-pill active" data-subj="" onclick="setFilter(this,'')">All Subjects</button>
+  </div>
+
+  <!-- Notes grid -->
+  <div class="notes-grid" id="notes-grid"></div>
+  <div id="empty-notes"></div>
+</div>
+
+<!-- VIEW NOTE MODAL -->
+<div class="modal-overlay" id="view-modal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h2 class="modal-title" id="vm-title"></h2>
+      <button class="modal-close" onclick="closeModal('view-modal')">✕</button>
+    </div>
+    <div style="margin-bottom:16px;display:flex;gap:8px;flex-wrap:wrap" id="vm-badges"></div>
+    <p id="vm-desc" style="font-size:.85rem;color:var(--text-3);margin-bottom:16px"></p>
+    <div id="vm-content"></div>
+    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;font-size:.78rem;color:var(--text-3)" id="vm-meta"></div>
+  </div>
+</div>
+
+<!-- UPLOAD MODAL -->
+<div class="modal-overlay" id="upload-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title">📤 Upload a Note</h2>
+      <button class="modal-close" onclick="closeModal('upload-modal')">✕</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Title *</label>
+      <input class="form-control" id="u-title" placeholder="e.g. Physics Chapter 3 — Waves"/>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Subject *</label>
+        <select class="form-control" id="u-subj">
+          <option value="">Select subject</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Type</label>
+        <select class="form-control" id="u-type" onchange="toggleUploadType()">
+          <option value="text">📝 Text Content</option>
+          <option value="link">🔗 External Link</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Description *</label>
+      <input class="form-control" id="u-desc" placeholder="Brief description of the notes…"/>
+    </div>
+    <div id="u-text-wrap" class="form-group">
+      <label class="form-label">Content *</label>
+      <textarea class="form-control" id="u-content" rows="8" placeholder="Paste or type your notes here. Formulas, definitions, examples — everything!"></textarea>
+      <p class="form-hint">Write clearly formatted notes. Other students will read this.</p>
+    </div>
+    <div id="u-link-wrap" class="form-group" style="display:none">
+      <label class="form-label">Link URL *</label>
+      <input class="form-control" id="u-link" placeholder="https://drive.google.com/…"/>
+      <p class="form-hint">Paste Google Drive, Dropbox, or any public link to your file.</p>
+    </div>
+    <div class="form-error" id="u-err"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:4px">
+      <button class="btn btn-ghost" onclick="closeModal('upload-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitNote()">Upload Note</button>
+    </div>
+  </div>
+</div>
+
+<footer class="footer">© 2025 StudyNest</footer>
+<div id="toast-container"></div>
+
+<script src="js/main.js"></script>
+<script src="js/auth.js"></script>
+<script>
+initApp('notes');
+
+let activeSubj = getUrlParam('subj') || '';
+const searchQ   = getUrlParam('q') || '';
+
+// Populate subject filter
+const filterBar = document.getElementById('subj-filter');
+SUBJECTS.forEach(s => {
+  filterBar.innerHTML += `<button class="filter-pill${activeSubj===s?' active':''}" data-subj="${s}" onclick="setFilter(this,'${s}')">${SUBJ_ICONS[s]} ${s}</button>`;
+});
+
+// Populate subject dropdown
+const subjSel = document.getElementById('u-subj');
+SUBJECTS.forEach(s => subjSel.innerHTML += `<option value="${s}">${s}</option>`);
+
+// Set search if query param
+if (searchQ) document.getElementById('search-input').value = searchQ;
+
+// If ?id=xxx scroll to / open that note
+const focusId = getUrlParam('id');
+
+function setFilter(btn, subj) {
+  document.querySelectorAll('#subj-filter .filter-pill').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  activeSubj = subj;
+  renderNotes();
+}
+
+function renderNotes() {
+  const q = document.getElementById('search-input').value.trim().toLowerCase();
+  let notes = getNotes();
+  if (activeSubj) notes = notes.filter(n => n.subject === activeSubj);
+  if (q) notes = notes.filter(n =>
+    n.title.toLowerCase().includes(q) ||
+    (n.description||'').toLowerCase().includes(q) ||
+    n.subject.toLowerCase().includes(q) ||
+    (n.content||'').toLowerCase().includes(q)
+  );
+  notes.sort((a,b) => b.date - a.date);
+
+  const grid = document.getElementById('notes-grid');
+  const empty = document.getElementById('empty-notes');
+  grid.innerHTML = '';
+
+  if (!notes.length) {
+    empty.innerHTML = `<div class="empty-state">
+      <div class="empty-icon">📭</div>
+      <h3>No notes found</h3>
+      <p>Try a different subject or <a href="#" onclick="openUploadModal()">upload the first one</a>!</p>
+    </div>`;
+    return;
+  }
+  empty.innerHTML = '';
+
+  notes.forEach(n => {
+    const isLink = n.type === 'link';
+    const icon = isLink ? '🔗' : '📝';
+    const iconClass = isLink ? 'note-type-link' : 'note-type-text';
+    const likeCount = (n.likes||[]).length;
+    grid.innerHTML += `
+    <div class="note-card card-hover" id="nc-${n.id}">
+      <div class="note-card-top">
+        <div class="note-type-icon ${iconClass}">${icon}</div>
+        <div style="flex:1;min-width:0">
+          <div class="note-card-title">${escHtml(n.title)}</div>
+          <span class="badge badge-blue" style="margin-top:4px">${escHtml(n.subject)}</span>
+        </div>
+      </div>
+      <p class="note-card-desc">${escHtml(n.description)}</p>
+      <div class="note-card-meta">
+        <span>👤 ${escHtml(n.uploaderName)}</span>
+        <span>📅 ${formatDate(n.date)}</span>
+        <span>👁 ${n.views||0} views</span>
+      </div>
+      <div class="note-card-footer">
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-outline btn-sm" onclick="viewNote('${n.id}')">👁 View</button>
+          ${isLink
+            ? `<a href="${escHtml(n.link||'#')}" target="_blank" class="btn btn-green btn-sm">↗ Open</a>`
+            : `<button class="btn btn-ghost btn-sm" onclick="copyNote('${n.id}')">📋 Copy</button>`}
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="likeNote('${n.id}', this)" style="color:${isLiked(n.id)?'var(--red)':'var(--text-3)'}">
+          ${isLiked(n.id)?'❤️':'🤍'} ${likeCount}
+        </button>
+      </div>
+    </div>`;
+  });
+
+  // Auto-open if ?id
+  if (focusId) {
+    const n = notes.find(x => x.id === focusId);
+    if (n) setTimeout(() => viewNote(focusId), 300);
+  }
+}
+
+function isLiked(noteId) {
+  const u = getCurrentUser();
+  if (!u) return false;
+  const n = getNotes().find(x => x.id === noteId);
+  return n && (n.likes||[]).includes(u.id);
+}
+
+function viewNote(id) {
+  const notes = getNotes();
+  const n = notes.find(x => x.id === id);
+  if (!n) return;
+  // increment views
+  const i = notes.findIndex(x => x.id === id);
+  notes[i].views = (notes[i].views||0) + 1;
+  saveNotes(notes);
+
+  document.getElementById('vm-title').textContent = n.title;
+  document.getElementById('vm-badges').innerHTML = `
+    <span class="badge badge-blue">${escHtml(n.subject)}</span>
+    <span class="badge badge-gray">${n.type === 'link' ? '🔗 Link' : '📝 Text'}</span>`;
+  document.getElementById('vm-desc').textContent = n.description;
+
+  const content = document.getElementById('vm-content');
+  if (n.type === 'link') {
+    content.innerHTML = `<div style="text-align:center;padding:32px;background:var(--bg);border-radius:var(--radius);border:1px solid var(--border)">
+      <div style="font-size:3rem;margin-bottom:12px">🔗</div>
+      <p style="margin-bottom:16px;color:var(--text-2);font-size:.9rem">This note links to an external resource.</p>
+      <a href="${escHtml(n.link||'#')}" target="_blank" class="btn btn-primary">Open File / Link ↗</a>
+    </div>`;
+  } else {
+    content.innerHTML = `<div class="note-content-box">${escHtml(n.content||'(No content)')}</div>`;
+  }
+
+  document.getElementById('vm-meta').innerHTML = `
+    <span>👤 Uploaded by <strong>${escHtml(n.uploaderName)}</strong></span>
+    <span>📅 ${formatDate(n.date)}</span>
+    <span>❤️ ${(n.likes||[]).length} likes</span>`;
+
+  openModal('view-modal');
+}
+
+function likeNote(id, btn) {
+  const u = getCurrentUser();
+  if (!u) { toast('Please login to like notes', 'error'); location.href='login.html'; return; }
+  const notes = getNotes();
+  const i = notes.findIndex(n => n.id === id);
+  if (i < 0) return;
+  const likes = notes[i].likes || [];
+  const idx = likes.indexOf(u.id);
+  if (idx >= 0) { likes.splice(idx,1); }
+  else { likes.push(u.id); addPoints(notes[i].uploaderId, 1); }
+  notes[i].likes = likes;
+  saveNotes(notes);
+  renderNotes();
+}
+
+function copyNote(id) {
+  const n = getNotes().find(x => x.id === id);
+  if (!n || !n.content) return;
+  navigator.clipboard.writeText(n.content).then(() => toast('Note content copied!'));
+}
+
+function openUploadModal() {
+  if (!requireAuth()) return;
+  document.getElementById('u-title').value = '';
+  document.getElementById('u-subj').value = '';
+  document.getElementById('u-desc').value = '';
+  document.getElementById('u-content').value = '';
+  document.getElementById('u-link').value = '';
+  document.getElementById('u-err').classList.remove('show');
+  openModal('upload-modal');
+}
+
+function toggleUploadType() {
+  const t = document.getElementById('u-type').value;
+  document.getElementById('u-text-wrap').style.display = t === 'text' ? 'block' : 'none';
+  document.getElementById('u-link-wrap').style.display = t === 'link' ? 'block' : 'none';
+}
+
+function submitNote() {
+  const u = getCurrentUser();
+  if (!u) return;
+  const title = document.getElementById('u-title').value.trim();
+  const subj  = document.getElementById('u-subj').value;
+  const desc  = document.getElementById('u-desc').value.trim();
+  const type  = document.getElementById('u-type').value;
+  const content = document.getElementById('u-content').value.trim();
+  const link  = document.getElementById('u-link').value.trim();
+  const errEl = document.getElementById('u-err');
+  errEl.classList.remove('show');
+
+  if (!title) { errEl.textContent='Title is required.'; errEl.classList.add('show'); return; }
+  if (!subj)  { errEl.textContent='Please select a subject.'; errEl.classList.add('show'); return; }
+  if (!desc)  { errEl.textContent='Description is required.'; errEl.classList.add('show'); return; }
+  if (type==='text' && !content) { errEl.textContent='Please add some content.'; errEl.classList.add('show'); return; }
+  if (type==='link' && !link)    { errEl.textContent='Please add the link URL.'; errEl.classList.add('show'); return; }
+
+  const note = {
+    id: genId(), title, subject: subj, description: desc,
+    type, content: type==='text' ? content : '',
+    link: type==='link' ? link : '',
+    uploaderId: u.id, uploaderName: u.name,
+    date: Date.now(), likes: [], views: 0
+  };
+  addNote(note);
+  addPoints(u.id, 10);
+  closeModal('upload-modal');
+  toast('Note uploaded! You earned 10 points 🎉', 'success');
+  renderNotes();
+}
+
+renderNotes();
+</script>
+</body>
+</html>
