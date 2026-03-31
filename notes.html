@@ -75,6 +75,7 @@
         <select class="form-control" id="u-type" onchange="toggleUploadType()">
           <option value="text">📝 Text Content</option>
           <option value="link">🔗 External Link</option>
+          <option value="image">🖼 Image / Photo</option>
         </select>
       </div>
     </div>
@@ -92,6 +93,14 @@
       <input class="form-control" id="u-link" placeholder="https://drive.google.com/…"/>
       <p class="form-hint">Paste Google Drive, Dropbox, or any public link to your file.</p>
     </div>
+    <div id="u-image-wrap" class="form-group" style="display:none">
+      <label class="form-label">Upload Image *</label>
+      <input type="file" class="form-control" id="u-image" accept="image/*"/>
+      <p class="form-hint">JPG, PNG, GIF — max 5MB. Requires Imgbb API key.</p>
+      <div id="u-img-preview" style="margin-top:10px;display:none">
+        <img id="u-img-preview-img" style="max-width:100%;max-height:200px;border-radius:var(--radius-sm);border:1px solid var(--border)"/>
+      </div>
+    </div>
     <div class="form-error" id="u-err"></div>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:4px">
       <button class="btn btn-ghost" onclick="closeModal('upload-modal')">Cancel</button>
@@ -103,8 +112,8 @@
 <footer class="footer">© 2025 StudyNest</footer>
 <div id="toast-container"></div>
 
-<script src="js/main.js"></script>
-<script src="js/auth.js"></script>
+<script src="Js/main.js"></script>
+<script src="Js/auth.js"></script>
 <script>
 initApp('notes');
 
@@ -162,11 +171,13 @@ function renderNotes() {
 
   notes.forEach(n => {
     const isLink = n.type === 'link';
-    const icon = isLink ? '🔗' : '📝';
+    const isImage = n.type === 'image';
+    const icon = isLink ? '🔗' : isImage ? '🖼' : '📝';
     const iconClass = isLink ? 'note-type-link' : 'note-type-text';
     const likeCount = (n.likes||[]).length;
     grid.innerHTML += `
     <div class="note-card card-hover" id="nc-${n.id}">
+      ${isImage && n.imageUrl ? `<img src="${escHtml(n.imageUrl)}" style="width:100%;height:140px;object-fit:cover;border-radius:var(--radius-sm);margin-bottom:12px"/>` : ''}
       <div class="note-card-top">
         <div class="note-type-icon ${iconClass}">${icon}</div>
         <div style="flex:1;min-width:0">
@@ -185,6 +196,8 @@ function renderNotes() {
           <button class="btn btn-outline btn-sm" onclick="viewNote('${n.id}')">👁 View</button>
           ${isLink
             ? `<a href="${escHtml(n.link||'#')}" target="_blank" class="btn btn-green btn-sm">↗ Open</a>`
+            : isImage
+            ? `<a href="${escHtml(n.imageUrl||'#')}" target="_blank" class="btn btn-green btn-sm">🔍 Full Size</a>`
             : `<button class="btn btn-ghost btn-sm" onclick="copyNote('${n.id}')">📋 Copy</button>`}
         </div>
         <button class="btn btn-ghost btn-sm" onclick="likeNote('${n.id}', this)" style="color:${isLiked(n.id)?'var(--red)':'var(--text-3)'}">
@@ -229,6 +242,13 @@ function viewNote(id) {
       <div style="font-size:3rem;margin-bottom:12px">🔗</div>
       <p style="margin-bottom:16px;color:var(--text-2);font-size:.9rem">This note links to an external resource.</p>
       <a href="${escHtml(n.link||'#')}" target="_blank" class="btn btn-primary">Open File / Link ↗</a>
+    </div>`;
+  } else if (n.type === 'image' && n.imageUrl) {
+    content.innerHTML = `<div style="text-align:center">
+      <img src="${escHtml(n.imageUrl)}" style="max-width:100%;border-radius:var(--radius);border:1px solid var(--border);box-shadow:var(--shadow)"/>
+      <div style="margin-top:12px">
+        <a href="${escHtml(n.imageUrl)}" target="_blank" class="btn btn-outline btn-sm">🔍 Open Full Size</a>
+      </div>
     </div>`;
   } else {
     content.innerHTML = `<div class="note-content-box">${escHtml(n.content||'(No content)')}</div>`;
@@ -276,11 +296,25 @@ function openUploadModal() {
 
 function toggleUploadType() {
   const t = document.getElementById('u-type').value;
-  document.getElementById('u-text-wrap').style.display = t === 'text' ? 'block' : 'none';
-  document.getElementById('u-link-wrap').style.display = t === 'link' ? 'block' : 'none';
+  document.getElementById('u-text-wrap').style.display  = t === 'text'  ? 'block' : 'none';
+  document.getElementById('u-link-wrap').style.display  = t === 'link'  ? 'block' : 'none';
+  document.getElementById('u-image-wrap').style.display = t === 'image' ? 'block' : 'none';
 }
 
-function submitNote() {
+// Image preview
+document.addEventListener('change', e => {
+  if (e.target.id !== 'u-image') return;
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    document.getElementById('u-img-preview').style.display = 'block';
+    document.getElementById('u-img-preview-img').src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+});
+
+async function submitNote() {
   const u = getCurrentUser();
   if (!u) return;
   const title = document.getElementById('u-title').value.trim();
@@ -298,10 +332,24 @@ function submitNote() {
   if (type==='text' && !content) { errEl.textContent='Please add some content.'; errEl.classList.add('show'); return; }
   if (type==='link' && !link)    { errEl.textContent='Please add the link URL.'; errEl.classList.add('show'); return; }
 
+  let imageUrl = '';
+  if (type === 'image') {
+    const file = document.getElementById('u-image').files[0];
+    if (!file) { errEl.textContent='Please select an image.'; errEl.classList.add('show'); return; }
+    const submitBtn = document.querySelector('#upload-modal .btn-primary');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Uploading…';
+    imageUrl = await uploadImageToImgbb(file);
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Upload Note';
+    if (!imageUrl) return;
+  }
+
   const note = {
     id: genId(), title, subject: subj, description: desc,
     type, content: type==='text' ? content : '',
     link: type==='link' ? link : '',
+    imageUrl: type==='image' ? imageUrl : '',
     uploaderId: u.id, uploaderName: u.name,
     date: Date.now(), likes: [], views: 0
   };
