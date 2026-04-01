@@ -9,43 +9,37 @@
 <body>
 <div id="navbar"></div>
 
-<!-- PAGE HEADER -->
 <div class="page-header">
   <div class="container">
     <div class="page-header-inner">
       <div>
         <h1 class="page-title">📚 Study Notes</h1>
-        <p class="page-sub">Browse and download notes shared by students</p>
+        <p class="page-sub">Browse and share notes with fellow students</p>
       </div>
-      <button class="btn btn-primary" onclick="openUploadModal()">+ Upload Note</button>
+      <button class="btn btn-primary" id="upload-btn">+ Upload Note</button>
     </div>
   </div>
 </div>
 
 <div class="container" style="padding-bottom:60px">
-  <!-- Search bar -->
   <div style="margin-bottom:16px">
-    <input class="form-control" type="text" id="search-input" placeholder="🔍  Search by title, subject or keyword…" oninput="renderNotes()" style="max-width:500px"/>
+    <input class="form-control" type="text" id="search-input" placeholder="🔍  Search notes…" style="max-width:500px"/>
   </div>
-
-  <!-- Subject filter -->
   <div class="filter-bar" id="subj-filter">
-    <button class="filter-pill active" data-subj="" onclick="setFilter(this,'')">All Subjects</button>
+    <button class="filter-pill active" onclick="setFilter(this,'')">All Subjects</button>
   </div>
-
-  <!-- Notes grid -->
   <div class="notes-grid" id="notes-grid"></div>
   <div id="empty-notes"></div>
 </div>
 
-<!-- VIEW NOTE MODAL -->
+<!-- VIEW MODAL -->
 <div class="modal-overlay" id="view-modal">
   <div class="modal modal-lg">
     <div class="modal-header">
       <h2 class="modal-title" id="vm-title"></h2>
       <button class="modal-close" onclick="closeModal('view-modal')">✕</button>
     </div>
-    <div style="margin-bottom:16px;display:flex;gap:8px;flex-wrap:wrap" id="vm-badges"></div>
+    <div style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap" id="vm-badges"></div>
     <p id="vm-desc" style="font-size:.85rem;color:var(--text-3);margin-bottom:16px"></p>
     <div id="vm-content"></div>
     <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;font-size:.78rem;color:var(--text-3)" id="vm-meta"></div>
@@ -66,36 +60,41 @@
     <div class="form-row">
       <div class="form-group">
         <label class="form-label">Subject *</label>
-        <select class="form-control" id="u-subj">
-          <option value="">Select subject</option>
-        </select>
+        <select class="form-control" id="u-subj"><option value="">Select</option></select>
       </div>
       <div class="form-group">
         <label class="form-label">Type</label>
-        <select class="form-control" id="u-type" onchange="toggleUploadType()">
-          <option value="text">📝 Text Content</option>
-          <option value="link">🔗 External Link</option>
+        <select class="form-control" id="u-type" onchange="toggleType()">
+          <option value="text">📝 Text</option>
+          <option value="link">🔗 Link</option>
+          <option value="image">🖼 Image</option>
         </select>
       </div>
     </div>
     <div class="form-group">
       <label class="form-label">Description *</label>
-      <input class="form-control" id="u-desc" placeholder="Brief description of the notes…"/>
+      <input class="form-control" id="u-desc" placeholder="Brief description…"/>
     </div>
     <div id="u-text-wrap" class="form-group">
       <label class="form-label">Content *</label>
-      <textarea class="form-control" id="u-content" rows="8" placeholder="Paste or type your notes here. Formulas, definitions, examples — everything!"></textarea>
-      <p class="form-hint">Write clearly formatted notes. Other students will read this.</p>
+      <textarea class="form-control" id="u-content" rows="7" placeholder="Paste your notes here…"></textarea>
     </div>
     <div id="u-link-wrap" class="form-group" style="display:none">
       <label class="form-label">Link URL *</label>
       <input class="form-control" id="u-link" placeholder="https://drive.google.com/…"/>
-      <p class="form-hint">Paste Google Drive, Dropbox, or any public link to your file.</p>
+    </div>
+    <div id="u-image-wrap" class="form-group" style="display:none">
+      <label class="form-label">Image *</label>
+      <input type="file" class="form-control" id="u-image" accept="image/*"/>
+      <p class="form-hint">Requires Imgbb API key (set in Profile)</p>
+      <div id="u-img-preview" style="display:none;margin-top:8px">
+        <img id="u-img-prev-img" style="max-width:100%;max-height:180px;border-radius:var(--radius-sm)"/>
+      </div>
     </div>
     <div class="form-error" id="u-err"></div>
-    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:4px">
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
       <button class="btn btn-ghost" onclick="closeModal('upload-modal')">Cancel</button>
-      <button class="btn btn-primary" onclick="submitNote()">Upload Note</button>
+      <button class="btn btn-primary" id="u-submit">Upload Note</button>
     </div>
   </div>
 </div>
@@ -103,72 +102,96 @@
 <footer class="footer">© 2025 StudyNest</footer>
 <div id="toast-container"></div>
 
-<script src="js/main.js"></script>
-<script src="js/auth.js"></script>
-<script>
-initApp('notes');
+<script type="module">
+import { onAuthChange, getUser, getNotes, addNote, likeNote, incrementNoteViews, deleteNote } from './Js/firebase.js';
+import { SUBJECTS, SUBJ_ICONS, escHtml, formatDate, avatarColor, initial, toast, openModal, closeModal, renderNavbar, initScrollTop, uploadImageToImgbb, getUrlParam } from './Js/main.js';
 
+initScrollTop();
+let currentUser = null;
+let currentUserData = null;
 let activeSubj = getUrlParam('subj') || '';
-const searchQ   = getUrlParam('q') || '';
+let allNotes = [];
 
-// Populate subject filter
-const filterBar = document.getElementById('subj-filter');
-SUBJECTS.forEach(s => {
-  filterBar.innerHTML += `<button class="filter-pill${activeSubj===s?' active':''}" data-subj="${s}" onclick="setFilter(this,'${s}')">${SUBJ_ICONS[s]} ${s}</button>`;
+window.closeModal = closeModal;
+window.toggleType = toggleType;
+
+onAuthChange(async user => {
+  currentUser = user;
+  if (user) currentUserData = await getUser(user.uid);
+  renderNavbar('notes', currentUserData);
 });
 
-// Populate subject dropdown
-const subjSel = document.getElementById('u-subj');
-SUBJECTS.forEach(s => subjSel.innerHTML += `<option value="${s}">${s}</option>`);
-
-// Set search if query param
-if (searchQ) document.getElementById('search-input').value = searchQ;
-
-// If ?id=xxx scroll to / open that note
-const focusId = getUrlParam('id');
-
-function setFilter(btn, subj) {
+// Subject filter
+const subj_filter = document.getElementById('subj-filter');
+SUBJECTS.forEach(s => {
+  subj_filter.innerHTML += `<button class="filter-pill${activeSubj===s?' active':''}" onclick="setFilter(this,'${s}')">${SUBJ_ICONS[s]} ${s}</button>`;
+});
+window.setFilter = (btn, subj) => {
   document.querySelectorAll('#subj-filter .filter-pill').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   activeSubj = subj;
+  renderNotes();
+};
+
+// Subject dropdown
+const subjSel = document.getElementById('u-subj');
+SUBJECTS.forEach(s => subjSel.innerHTML += `<option value="${s}">${s}</option>`);
+
+// Image preview
+document.getElementById('u-image').addEventListener('change', e => {
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = ev => {
+    document.getElementById('u-img-preview').style.display = 'block';
+    document.getElementById('u-img-prev-img').src = ev.target.result;
+  };
+  r.readAsDataURL(f);
+});
+
+// Search
+document.getElementById('search-input').addEventListener('input', renderNotes);
+if (getUrlParam('q')) document.getElementById('search-input').value = getUrlParam('q');
+
+// Load notes
+async function loadNotes() {
+  allNotes = await getNotes(activeSubj);
   renderNotes();
 }
 
 function renderNotes() {
   const q = document.getElementById('search-input').value.trim().toLowerCase();
-  let notes = getNotes();
+  let notes = allNotes;
   if (activeSubj) notes = notes.filter(n => n.subject === activeSubj);
   if (q) notes = notes.filter(n =>
-    n.title.toLowerCase().includes(q) ||
-    (n.description||'').toLowerCase().includes(q) ||
-    n.subject.toLowerCase().includes(q) ||
-    (n.content||'').toLowerCase().includes(q)
+    n.title?.toLowerCase().includes(q) ||
+    n.description?.toLowerCase().includes(q) ||
+    n.subject?.toLowerCase().includes(q)
   );
-  notes.sort((a,b) => b.date - a.date);
 
   const grid = document.getElementById('notes-grid');
   const empty = document.getElementById('empty-notes');
   grid.innerHTML = '';
 
   if (!notes.length) {
-    empty.innerHTML = `<div class="empty-state">
-      <div class="empty-icon">📭</div>
-      <h3>No notes found</h3>
-      <p>Try a different subject or <a href="#" onclick="openUploadModal()">upload the first one</a>!</p>
-    </div>`;
+    empty.innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div><h3>No notes found</h3><p><a href="#" id="empty-upload">Upload the first one!</a></p></div>`;
+    document.getElementById('empty-upload')?.addEventListener('click', e => { e.preventDefault(); openUploadModal(); });
     return;
   }
   empty.innerHTML = '';
 
   notes.forEach(n => {
-    const isLink = n.type === 'link';
-    const icon = isLink ? '🔗' : '📝';
-    const iconClass = isLink ? 'note-type-link' : 'note-type-text';
-    const likeCount = (n.likes||[]).length;
+    const isLink  = n.type === 'link';
+    const isImage = n.type === 'image';
+    const icon    = isLink ? '🔗' : isImage ? '🖼' : '📝';
+    const likes   = n.likes || [];
+    const liked   = currentUser && likes.includes(currentUser.uid);
+    const isOwner = currentUser && n.uploaderId === currentUser.uid;
+
     grid.innerHTML += `
-    <div class="note-card card-hover" id="nc-${n.id}">
+    <div class="note-card card-hover">
+      ${isImage && n.imageUrl ? `<img src="${escHtml(n.imageUrl)}" style="width:100%;height:140px;object-fit:cover;border-radius:var(--radius-sm);margin-bottom:12px"/>` : ''}
       <div class="note-card-top">
-        <div class="note-type-icon ${iconClass}">${icon}</div>
+        <div class="note-type-icon ${isLink?'note-type-link':'note-type-text'}">${icon}</div>
         <div style="flex:1;min-width:0">
           <div class="note-card-title">${escHtml(n.title)}</div>
           <span class="badge badge-blue" style="margin-top:4px">${escHtml(n.subject)}</span>
@@ -178,111 +201,101 @@ function renderNotes() {
       <div class="note-card-meta">
         <span>👤 ${escHtml(n.uploaderName)}</span>
         <span>📅 ${formatDate(n.date)}</span>
-        <span>👁 ${n.views||0} views</span>
+        <span>👁 ${n.views||0}</span>
       </div>
       <div class="note-card-footer">
-        <div style="display:flex;gap:6px">
-          <button class="btn btn-outline btn-sm" onclick="viewNote('${n.id}')">👁 View</button>
-          ${isLink
-            ? `<a href="${escHtml(n.link||'#')}" target="_blank" class="btn btn-green btn-sm">↗ Open</a>`
-            : `<button class="btn btn-ghost btn-sm" onclick="copyNote('${n.id}')">📋 Copy</button>`}
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn btn-outline btn-sm" data-view="${n.id}">👁 View</button>
+          ${isLink ? `<a href="${escHtml(n.link||'#')}" target="_blank" class="btn btn-green btn-sm">↗ Open</a>` : ''}
+          ${isImage ? `<a href="${escHtml(n.imageUrl||'#')}" target="_blank" class="btn btn-green btn-sm">🔍 Full</a>` : ''}
+          ${!isLink && !isImage ? `<button class="btn btn-ghost btn-sm" data-copy="${n.id}">📋 Copy</button>` : ''}
+          ${isOwner ? `<button class="btn btn-red btn-sm" data-del="${n.id}">🗑</button>` : ''}
         </div>
-        <button class="btn btn-ghost btn-sm" onclick="likeNote('${n.id}', this)" style="color:${isLiked(n.id)?'var(--red)':'var(--text-3)'}">
-          ${isLiked(n.id)?'❤️':'🤍'} ${likeCount}
+        <button class="btn btn-ghost btn-sm" data-like="${n.id}" style="color:${liked?'var(--red)':'var(--text-3)'}">
+          ${liked?'❤️':'🤍'} ${likes.length}
         </button>
       </div>
     </div>`;
   });
 
-  // Auto-open if ?id
-  if (focusId) {
-    const n = notes.find(x => x.id === focusId);
-    if (n) setTimeout(() => viewNote(focusId), 300);
-  }
+  // Events
+  grid.querySelectorAll('[data-view]').forEach(btn =>
+    btn.addEventListener('click', () => viewNote(btn.dataset.view)));
+  grid.querySelectorAll('[data-like]').forEach(btn =>
+    btn.addEventListener('click', () => doLike(btn.dataset.like)));
+  grid.querySelectorAll('[data-copy]').forEach(btn =>
+    btn.addEventListener('click', () => {
+      const n = allNotes.find(x => x.id === btn.dataset.copy);
+      if (n?.content) navigator.clipboard.writeText(n.content).then(() => toast('Copied!'));
+    }));
+  grid.querySelectorAll('[data-del]').forEach(btn =>
+    btn.addEventListener('click', () => doDelete(btn.dataset.del)));
 }
 
-function isLiked(noteId) {
-  const u = getCurrentUser();
-  if (!u) return false;
-  const n = getNotes().find(x => x.id === noteId);
-  return n && (n.likes||[]).includes(u.id);
-}
-
-function viewNote(id) {
-  const notes = getNotes();
-  const n = notes.find(x => x.id === id);
+async function viewNote(id) {
+  const n = allNotes.find(x => x.id === id);
   if (!n) return;
-  // increment views
-  const i = notes.findIndex(x => x.id === id);
-  notes[i].views = (notes[i].views||0) + 1;
-  saveNotes(notes);
-
+  await incrementNoteViews(id);
   document.getElementById('vm-title').textContent = n.title;
-  document.getElementById('vm-badges').innerHTML = `
-    <span class="badge badge-blue">${escHtml(n.subject)}</span>
-    <span class="badge badge-gray">${n.type === 'link' ? '🔗 Link' : '📝 Text'}</span>`;
+  document.getElementById('vm-badges').innerHTML =
+    `<span class="badge badge-blue">${escHtml(n.subject)}</span>
+     <span class="badge badge-gray">${n.type==='link'?'🔗 Link':n.type==='image'?'🖼 Image':'📝 Text'}</span>`;
   document.getElementById('vm-desc').textContent = n.description;
-
   const content = document.getElementById('vm-content');
   if (n.type === 'link') {
-    content.innerHTML = `<div style="text-align:center;padding:32px;background:var(--bg);border-radius:var(--radius);border:1px solid var(--border)">
+    content.innerHTML = `<div style="text-align:center;padding:32px;background:var(--bg);border-radius:var(--radius)">
       <div style="font-size:3rem;margin-bottom:12px">🔗</div>
-      <p style="margin-bottom:16px;color:var(--text-2);font-size:.9rem">This note links to an external resource.</p>
-      <a href="${escHtml(n.link||'#')}" target="_blank" class="btn btn-primary">Open File / Link ↗</a>
-    </div>`;
+      <a href="${escHtml(n.link||'#')}" target="_blank" class="btn btn-primary">Open Link ↗</a></div>`;
+  } else if (n.type === 'image' && n.imageUrl) {
+    content.innerHTML = `<div style="text-align:center">
+      <img src="${escHtml(n.imageUrl)}" style="max-width:100%;border-radius:var(--radius);border:1px solid var(--border)"/>
+      <div style="margin-top:10px"><a href="${escHtml(n.imageUrl)}" target="_blank" class="btn btn-outline btn-sm">🔍 Full Size</a></div></div>`;
   } else {
-    content.innerHTML = `<div class="note-content-box">${escHtml(n.content||'(No content)')}</div>`;
+    content.innerHTML = `<div class="note-content-box">${escHtml(n.content||'')}</div>`;
   }
-
-  document.getElementById('vm-meta').innerHTML = `
-    <span>👤 Uploaded by <strong>${escHtml(n.uploaderName)}</strong></span>
-    <span>📅 ${formatDate(n.date)}</span>
-    <span>❤️ ${(n.likes||[]).length} likes</span>`;
-
+  document.getElementById('vm-meta').innerHTML =
+    `<span>👤 ${escHtml(n.uploaderName)}</span>
+     <span>📅 ${formatDate(n.date)}</span>
+     <span>❤️ ${(n.likes||[]).length}</span>`;
   openModal('view-modal');
 }
 
-function likeNote(id, btn) {
-  const u = getCurrentUser();
-  if (!u) { toast('Please login to like notes', 'error'); location.href='login.html'; return; }
-  const notes = getNotes();
-  const i = notes.findIndex(n => n.id === id);
-  if (i < 0) return;
-  const likes = notes[i].likes || [];
-  const idx = likes.indexOf(u.id);
-  if (idx >= 0) { likes.splice(idx,1); }
-  else { likes.push(u.id); addPoints(notes[i].uploaderId, 1); }
-  notes[i].likes = likes;
-  saveNotes(notes);
+async function doLike(id) {
+  if (!currentUser) { toast('Please login to like notes','error'); location.href='login.html'; return; }
+  await likeNote(id, currentUser.uid);
+  allNotes = await getNotes(activeSubj);
   renderNotes();
 }
 
-function copyNote(id) {
-  const n = getNotes().find(x => x.id === id);
-  if (!n || !n.content) return;
-  navigator.clipboard.writeText(n.content).then(() => toast('Note content copied!'));
+async function doDelete(id) {
+  if (!confirm('Delete this note?')) return;
+  await deleteNote(id);
+  toast('Note deleted.','info');
+  allNotes = allNotes.filter(n => n.id !== id);
+  renderNotes();
 }
 
+// Upload
 function openUploadModal() {
-  if (!requireAuth()) return;
-  document.getElementById('u-title').value = '';
-  document.getElementById('u-subj').value = '';
-  document.getElementById('u-desc').value = '';
-  document.getElementById('u-content').value = '';
-  document.getElementById('u-link').value = '';
+  if (!currentUser) { toast('Please login first','error'); location.href='login.html'; return; }
+  ['u-title','u-desc','u-content','u-link'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  document.getElementById('u-type').value = 'text';
   document.getElementById('u-err').classList.remove('show');
+  document.getElementById('u-img-preview').style.display = 'none';
+  toggleType();
   openModal('upload-modal');
 }
 
-function toggleUploadType() {
+function toggleType() {
   const t = document.getElementById('u-type').value;
-  document.getElementById('u-text-wrap').style.display = t === 'text' ? 'block' : 'none';
-  document.getElementById('u-link-wrap').style.display = t === 'link' ? 'block' : 'none';
+  document.getElementById('u-text-wrap').style.display  = t==='text'  ? 'block':'none';
+  document.getElementById('u-link-wrap').style.display  = t==='link'  ? 'block':'none';
+  document.getElementById('u-image-wrap').style.display = t==='image' ? 'block':'none';
 }
 
-function submitNote() {
-  const u = getCurrentUser();
-  if (!u) return;
+document.getElementById('upload-btn').addEventListener('click', openUploadModal);
+
+document.getElementById('u-submit').addEventListener('click', async () => {
   const title = document.getElementById('u-title').value.trim();
   const subj  = document.getElementById('u-subj').value;
   const desc  = document.getElementById('u-desc').value.trim();
@@ -292,27 +305,45 @@ function submitNote() {
   const errEl = document.getElementById('u-err');
   errEl.classList.remove('show');
 
-  if (!title) { errEl.textContent='Title is required.'; errEl.classList.add('show'); return; }
-  if (!subj)  { errEl.textContent='Please select a subject.'; errEl.classList.add('show'); return; }
-  if (!desc)  { errEl.textContent='Description is required.'; errEl.classList.add('show'); return; }
-  if (type==='text' && !content) { errEl.textContent='Please add some content.'; errEl.classList.add('show'); return; }
-  if (type==='link' && !link)    { errEl.textContent='Please add the link URL.'; errEl.classList.add('show'); return; }
+  if (!title) { errEl.textContent='Title required.'; errEl.classList.add('show'); return; }
+  if (!subj)  { errEl.textContent='Select a subject.'; errEl.classList.add('show'); return; }
+  if (!desc)  { errEl.textContent='Description required.'; errEl.classList.add('show'); return; }
+  if (type==='text' && !content) { errEl.textContent='Add some content.'; errEl.classList.add('show'); return; }
+  if (type==='link' && !link)    { errEl.textContent='Add the link URL.'; errEl.classList.add('show'); return; }
 
-  const note = {
-    id: genId(), title, subject: subj, description: desc,
-    type, content: type==='text' ? content : '',
-    link: type==='link' ? link : '',
-    uploaderId: u.id, uploaderName: u.name,
-    date: Date.now(), likes: [], views: 0
-  };
-  addNote(note);
-  addPoints(u.id, 10);
+  const btn = document.getElementById('u-submit');
+  btn.disabled = true; btn.textContent = 'Uploading…';
+
+  let imageUrl = '';
+  if (type === 'image') {
+    const file = document.getElementById('u-image').files[0];
+    if (!file) { errEl.textContent='Select an image.'; errEl.classList.add('show'); btn.disabled=false; btn.textContent='Upload Note'; return; }
+    imageUrl = await uploadImageToImgbb(file);
+    if (!imageUrl) { btn.disabled=false; btn.textContent='Upload Note'; return; }
+  }
+
+  await addNote({
+    title, subject: subj, description: desc, type,
+    content: type==='text' ? content : '',
+    link:    type==='link' ? link : '',
+    imageUrl,
+    uploaderId: currentUser.uid,
+    uploaderName: currentUserData?.name || currentUser.displayName || 'Student',
+    likes: [], views: 0
+  });
+
+  // Add points
+  const { addPoints } = await import('./Js/firebase.js');
+  await addPoints(currentUser.uid, 10);
+
   closeModal('upload-modal');
-  toast('Note uploaded! You earned 10 points 🎉', 'success');
+  toast('Note uploaded! +10 pts 🎉','success');
+  btn.disabled=false; btn.textContent='Upload Note';
+  allNotes = await getNotes(activeSubj);
   renderNotes();
-}
+});
 
-renderNotes();
+loadNotes();
 </script>
 </body>
 </html>
