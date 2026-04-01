@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Q&amp;A — StudyNest</title>
+  <title>Q&A — StudyNest</title>
   <link rel="stylesheet" href="css/style.css"/>
 </head>
 <body>
@@ -16,30 +16,28 @@
         <h1 class="page-title">❓ Questions &amp; Answers</h1>
         <p class="page-sub">Ask doubts, get answers from fellow students</p>
       </div>
-      <button class="btn btn-primary" onclick="openAskModal()">+ Ask a Question</button>
+      <button class="btn btn-primary" id="ask-btn">+ Ask Question</button>
     </div>
   </div>
 </div>
 
 <div class="container" style="padding-bottom:60px">
   <div style="display:flex;gap:12px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
-    <input class="form-control" type="text" id="q-search" placeholder="🔍  Search questions…" oninput="renderQuestions()" style="flex:1;max-width:440px"/>
-    <select class="form-control" id="q-sort" onchange="renderQuestions()" style="width:auto">
-      <option value="newest">Newest First</option>
+    <input class="form-control" type="text" id="q-search" placeholder="🔍 Search questions…" style="flex:1;max-width:440px"/>
+    <select class="form-control" id="q-sort" style="width:auto">
+      <option value="newest">Newest</option>
       <option value="unanswered">Unanswered</option>
       <option value="most-answered">Most Answered</option>
     </select>
   </div>
-
   <div class="filter-bar" id="q-filter">
-    <button class="filter-pill active" data-subj="" onclick="setQFilter(this,'')">All</button>
+    <button class="filter-pill active" onclick="setQFilter(this,'')">All</button>
   </div>
-
   <div id="q-list"></div>
   <div id="q-empty"></div>
 </div>
 
-<!-- ASK QUESTION MODAL -->
+<!-- ASK MODAL -->
 <div class="modal-overlay" id="ask-modal">
   <div class="modal">
     <div class="modal-header">
@@ -47,8 +45,8 @@
       <button class="modal-close" onclick="closeModal('ask-modal')">✕</button>
     </div>
     <div class="form-group">
-      <label class="form-label">Question Title *</label>
-      <input class="form-control" id="a-title" placeholder="What is your question? Be specific…"/>
+      <label class="form-label">Title *</label>
+      <input class="form-control" id="a-title" placeholder="What is your question?"/>
     </div>
     <div class="form-row">
       <div class="form-group">
@@ -56,18 +54,25 @@
         <select class="form-control" id="a-subj"><option value="">Select</option></select>
       </div>
       <div class="form-group">
-        <label class="form-label">Tags (comma separated)</label>
-        <input class="form-control" id="a-tags" placeholder="e.g. Calculus, HSC, Integration"/>
+        <label class="form-label">Tags</label>
+        <input class="form-control" id="a-tags" placeholder="e.g. HSC, Calculus"/>
       </div>
     </div>
     <div class="form-group">
       <label class="form-label">Details *</label>
-      <textarea class="form-control" id="a-desc" rows="5" placeholder="Explain your question clearly. Add what you've already tried…"></textarea>
+      <textarea class="form-control" id="a-desc" rows="5" placeholder="Explain clearly…"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">📸 Image <span style="font-weight:400;color:var(--text-4)">(optional)</span></label>
+      <input type="file" class="form-control" id="a-image" accept="image/*"/>
+      <div id="a-img-preview" style="display:none;margin-top:8px">
+        <img id="a-img-prev-img" style="max-width:100%;max-height:150px;border-radius:var(--radius-sm)"/>
+      </div>
     </div>
     <div class="form-error" id="a-err"></div>
-    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:4px">
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
       <button class="btn btn-ghost" onclick="closeModal('ask-modal')">Cancel</button>
-      <button class="btn btn-primary" onclick="submitQuestion()">Post Question</button>
+      <button class="btn btn-primary" id="a-submit">Post Question</button>
     </div>
   </div>
 </div>
@@ -75,240 +80,272 @@
 <footer class="footer">© 2025 StudyNest</footer>
 <div id="toast-container"></div>
 
-<script src="js/main.js"></script>
-<script src="js/auth.js"></script>
-<script>
-initApp('questions');
+<script type="module">
+import { onAuthChange, getUser, getQuestions, addQuestion, addAnswer, upvoteAnswer, markBestAnswer, incrementQuestionViews, deleteQuestion, addPoints } from './Js/firebase.js';
+import { SUBJECTS, SUBJ_ICONS, escHtml, formatDate, avatarColor, initial, toast, openModal, closeModal, renderNavbar, initScrollTop, uploadImageToImgbb, getUrlParam, genId } from './Js/main.js';
 
-let activeSubj = getUrlParam('subj') || '';
-const focusId  = getUrlParam('id');
-let expandedId = focusId || null;
+initScrollTop();
+window.closeModal = closeModal;
 
-// Subject filter
+let currentUser = null, currentUserData = null;
+let allQuestions = [], activeSubj = '', expandedId = getUrlParam('id') || null;
+
+onAuthChange(async user => {
+  currentUser = user;
+  currentUserData = user ? await getUser(user.uid) : null;
+  renderNavbar('questions', currentUserData);
+});
+
+// Subject filters
 const qf = document.getElementById('q-filter');
 SUBJECTS.forEach(s => {
-  qf.innerHTML += `<button class="filter-pill${activeSubj===s?' active':''}" onclick="setQFilter(this,'${s}')">${SUBJ_ICONS[s]} ${s}</button>`;
+  qf.innerHTML += `<button class="filter-pill" onclick="setQFilter(this,'${s}')">${SUBJ_ICONS[s]} ${s}</button>`;
 });
+window.setQFilter = (btn, subj) => {
+  document.querySelectorAll('#q-filter .filter-pill').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  activeSubj = subj;
+  renderQuestions();
+};
 
 // Subject dropdown
 const aSubj = document.getElementById('a-subj');
 SUBJECTS.forEach(s => aSubj.innerHTML += `<option value="${s}">${s}</option>`);
 
-function setQFilter(btn, subj) {
-  document.querySelectorAll('#q-filter .filter-pill').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  activeSubj = subj;
+// Image preview
+document.getElementById('a-image').addEventListener('change', e => {
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = ev => {
+    document.getElementById('a-img-preview').style.display = 'block';
+    document.getElementById('a-img-prev-img').src = ev.target.result;
+  };
+  r.readAsDataURL(f);
+});
+
+document.getElementById('q-search').addEventListener('input', renderQuestions);
+document.getElementById('q-sort').addEventListener('change', renderQuestions);
+
+async function loadQuestions() {
+  allQuestions = await getQuestions();
   renderQuestions();
 }
 
 function renderQuestions() {
-  const q     = document.getElementById('q-search').value.trim().toLowerCase();
-  const sort  = document.getElementById('q-sort').value;
-  let   qs    = getQuestions();
-
+  const q    = document.getElementById('q-search').value.trim().toLowerCase();
+  const sort = document.getElementById('q-sort').value;
+  let qs = allQuestions;
   if (activeSubj) qs = qs.filter(x => x.subject === activeSubj);
   if (q) qs = qs.filter(x =>
-    x.title.toLowerCase().includes(q) ||
-    (x.description||'').toLowerCase().includes(q) ||
-    x.subject.toLowerCase().includes(q) ||
+    x.title?.toLowerCase().includes(q) ||
+    x.description?.toLowerCase().includes(q) ||
     (x.tags||[]).some(t => t.toLowerCase().includes(q))
   );
-  if (sort === 'newest')        qs.sort((a,b) => b.date - a.date);
-  if (sort === 'unanswered')    qs = qs.filter(x => !x.answers.length).concat(qs.filter(x => x.answers.length));
-  if (sort === 'most-answered') qs.sort((a,b) => b.answers.length - a.answers.length);
+  if (sort === 'newest') qs.sort((a,b) => (b.date?.seconds||0) - (a.date?.seconds||0));
+  if (sort === 'unanswered') qs = [...qs.filter(x=>!x.answers?.length), ...qs.filter(x=>x.answers?.length)];
+  if (sort === 'most-answered') qs.sort((a,b) => (b.answers?.length||0) - (a.answers?.length||0));
 
-  const list  = document.getElementById('q-list');
+  const list = document.getElementById('q-list');
   const empty = document.getElementById('q-empty');
   list.innerHTML = '';
 
   if (!qs.length) {
-    empty.innerHTML = `<div class="empty-state"><div class="empty-icon">🤔</div><h3>No questions found</h3><p><a href="#" onclick="openAskModal()">Ask the first question!</a></p></div>`;
+    empty.innerHTML = `<div class="empty-state"><div class="empty-icon">🤔</div><h3>No questions found</h3><p><a href="#" id="ask-link">Ask the first question!</a></p></div>`;
+    document.getElementById('ask-link')?.addEventListener('click', e => { e.preventDefault(); openAskModal(); });
     return;
   }
   empty.innerHTML = '';
 
   qs.forEach(q => {
-    const isExpanded = expandedId === q.id;
-    list.innerHTML += buildQuestionCard(q, isExpanded);
-  });
+    const expanded = expandedId === q.id;
+    const bestAns  = (q.answers||[]).find(a => a.isBest);
+    const isOwner  = currentUser && q.askerId === currentUser.uid;
 
-  // Attach answer submit listeners
-  document.querySelectorAll('.ans-submit-btn').forEach(btn => {
-    btn.addEventListener('click', () => submitAnswer(btn.dataset.qid));
-  });
-}
+    let answersHtml = '';
+    if (expanded) {
+      const ansHtml = (q.answers||[]).map(a => {
+        const voted = currentUser && (a.votes||[]).includes(currentUser.uid);
+        const isAsker = currentUser && q.askerId === currentUser.uid;
+        return `
+        <div class="answer-item${a.isBest?' best-answer':''}" id="ai-${a.id}">
+          <div class="ans-vote">
+            <button class="ans-upvote${voted?' voted':''}" data-upvote="${q.id}" data-aid="${a.id}">▲</button>
+            <span class="ans-vote-count">${(a.votes||[]).length}</span>
+          </div>
+          <div class="ans-body">
+            ${a.isBest ? '<div class="best-mark">✅ Best Answer</div>' : ''}
+            <div class="ans-text">${escHtml(a.text)}</div>
+            ${a.imageUrl ? `<img src="${escHtml(a.imageUrl)}" style="max-width:100%;border-radius:var(--radius-sm);margin-top:8px"/>` : ''}
+            <div class="ans-meta">
+              <div class="avatar avatar-sm" style="background:${avatarColor(a.userId)}">${initial(a.userName)}</div>
+              <strong>${escHtml(a.userName)}</strong>
+              <span>${formatDate(a.date)}</span>
+              ${isAsker && !bestAns && !a.isBest ? `<button class="best-btn" data-best="${q.id}" data-aid="${a.id}">Mark Best</button>` : ''}
+            </div>
+          </div>
+        </div>`;
+      }).join('') || `<div class="empty-state" style="padding:20px 0"><p>No answers yet. Be the first!</p></div>`;
 
-function buildQuestionCard(q, expanded) {
-  const hasAnswers = q.answers && q.answers.length > 0;
-  const answered   = hasAnswers ? 'badge-green' : 'badge-gray';
-  const bestAns    = q.answers.find(a => a.isBest);
+      answersHtml = `
+      <div class="question-expand">
+        <div class="question-full-desc">${escHtml(q.description)}</div>
+        ${q.imageUrl ? `<div style="margin-bottom:16px"><img src="${escHtml(q.imageUrl)}" style="max-width:100%;border-radius:var(--radius-sm)"/></div>` : ''}
+        <div class="answers-section">
+          <div class="answers-header">${(q.answers||[]).length} Answer${(q.answers||[]).length!==1?'s':''}</div>
+          ${ansHtml}
+          <div class="add-answer-form">
+            <div class="add-answer-label">✍️ Your Answer</div>
+            <textarea class="form-control" id="ans-${q.id}" rows="4" placeholder="Write a helpful answer…"></textarea>
+            <div style="margin-top:8px;display:flex;gap:8px;justify-content:flex-end">
+              ${isOwner ? `<button class="btn btn-red btn-sm" data-delq="${q.id}">🗑 Delete Q</button>` : ''}
+              <button class="btn btn-primary btn-sm" data-post-ans="${q.id}">Post Answer</button>
+            </div>
+          </div>
+        </div>
+      </div>`;
+    }
 
-  let answersHtml = '';
-  if (expanded) {
-    const answersBody = q.answers.map(a => buildAnswerItem(q.id, a)).join('');
-    const u = getCurrentUser();
-    const isAsker = u && u.id === q.askerId;
-    answersHtml = `
-    <div class="question-expand">
-      <div class="question-full-desc">${escHtml(q.description)}</div>
-      <div class="answers-section">
-        <div class="answers-header">${q.answers.length} Answer${q.answers.length!==1?'s':''}</div>
-        ${answersBody || `<div class="empty-state" style="padding:24px 0"><div class="empty-icon">💬</div><p>No answers yet. Be the first to help!</p></div>`}
-        <div class="add-answer-form">
-          <div class="add-answer-label">✍️ Your Answer</div>
-          <textarea class="form-control" id="ans-${q.id}" rows="5" placeholder="Write a clear, helpful answer…"></textarea>
-          <div style="margin-top:10px;display:flex;justify-content:flex-end">
-            <button class="btn btn-primary ans-submit-btn" data-qid="${q.id}">Post Answer</button>
+    list.innerHTML += `
+    <div class="question-item${expanded?' expanded':''}" id="qi-${q.id}">
+      <div class="question-top" data-toggle="${q.id}" style="cursor:pointer">
+        <div class="question-counts">
+          <div class="q-count-box"><span class="q-count-num">${(q.answers||[]).length}</span><span class="q-count-label">Ans</span></div>
+          <div class="q-count-box" style="margin-top:4px"><span class="q-count-num" style="font-size:.75rem">${q.views||0}</span><span class="q-count-label">Views</span></div>
+        </div>
+        <div class="question-body">
+          ${bestAns ? '<span class="badge badge-green" style="margin-bottom:6px;display:inline-flex">✅ Solved</span>' : ''}
+          <div class="question-title">${escHtml(q.title)}</div>
+          ${!expanded ? `<div class="question-preview">${escHtml(q.description)}</div>` : ''}
+          <div class="question-tags">
+            <span class="badge badge-blue">${escHtml(q.subject)}</span>
+            ${(q.tags||[]).map(t=>`<span class="tag">${escHtml(t)}</span>`).join('')}
+          </div>
+          <div class="question-meta">
+            <span>👤 ${escHtml(q.askerName)}</span>
+            <span>📅 ${formatDate(q.date)}</span>
+            <span>${expanded?'▲ Collapse':'▼ Expand'}</span>
           </div>
         </div>
       </div>
+      ${answersHtml}
     </div>`;
-  }
-
-  return `
-  <div class="question-item${expanded?' expanded':''}" id="qi-${q.id}">
-    <div class="question-top" onclick="toggleQuestion('${q.id}')">
-      <div class="question-counts">
-        <div class="q-count-box">
-          <span class="q-count-num">${q.answers.length}</span>
-          <span class="q-count-label">Answers</span>
-        </div>
-        <div class="q-count-box" style="margin-top:4px">
-          <span class="q-count-num" style="font-size:.78rem">${q.views||0}</span>
-          <span class="q-count-label">Views</span>
-        </div>
-      </div>
-      <div class="question-body">
-        ${bestAns ? '<span class="badge badge-green" style="margin-bottom:6px;display:inline-flex">✅ Solved</span>' : ''}
-        <div class="question-title">${escHtml(q.title)}</div>
-        ${!expanded ? `<div class="question-preview">${escHtml(q.description)}</div>` : ''}
-        <div class="question-tags">
-          <span class="badge badge-blue">${escHtml(q.subject)}</span>
-          ${(q.tags||[]).map(t=>`<span class="tag">${escHtml(t)}</span>`).join('')}
-        </div>
-        <div class="question-meta">
-          <span>👤 ${escHtml(q.askerName)}</span>
-          <span>📅 ${formatDate(q.date)}</span>
-          <span>${expanded ? '▲ Collapse' : '▼ Expand'}</span>
-        </div>
-      </div>
-    </div>
-    ${answersHtml}
-  </div>`;
-}
-
-function buildAnswerItem(qid, a) {
-  const u = getCurrentUser();
-  const voted = u && (a.votes||[]).includes(u.id);
-  const isAsker = u && getQuestions().find(q=>q.id===qid)?.askerId === u.id;
-  return `
-  <div class="answer-item${a.isBest?' best-answer':''}" id="ai-${a.id}">
-    <div class="ans-vote">
-      <button class="ans-upvote${voted?' voted':''}" onclick="upvoteAnswer('${qid}','${a.id}')" title="Upvote">▲</button>
-      <span class="ans-vote-count">${(a.votes||[]).length}</span>
-    </div>
-    <div class="ans-body">
-      ${a.isBest ? '<div class="best-mark">✅ Best Answer</div>' : ''}
-      <div class="ans-text">${escHtml(a.text)}</div>
-      <div class="ans-meta">
-        <div class="avatar avatar-sm" style="background:${avatarColor(a.userId)}">${initial(a.userName)}</div>
-        <strong>${escHtml(a.userName)}</strong>
-        <span>${formatDate(a.date)}</span>
-        ${isAsker && !getQuestions().find(q=>q.id===qid)?.answers.some(x=>x.isBest) && !a.isBest
-          ? `<button class="best-btn" onclick="markBest('${qid}','${a.id}')">Mark as Best</button>`
-          : ''}
-      </div>
-    </div>
-  </div>`;
-}
-
-function toggleQuestion(id) {
-  // track view
-  updateQuestion(id, q => { q.views = (q.views||0) + 1; });
-  expandedId = expandedId === id ? null : id;
-  renderQuestions();
-  if (expandedId) setTimeout(() => document.getElementById('qi-'+id)?.scrollIntoView({behavior:'smooth',block:'nearest'}), 100);
-}
-
-function upvoteAnswer(qid, aid) {
-  const u = getCurrentUser();
-  if (!u) { toast('Please login to vote','error'); location.href='login.html'; return; }
-  updateQuestion(qid, q => {
-    const a = q.answers.find(x => x.id === aid);
-    if (!a) return;
-    a.votes = a.votes || [];
-    const i = a.votes.indexOf(u.id);
-    if (i >= 0) { a.votes.splice(i,1); }
-    else { a.votes.push(u.id); addPoints(a.userId, 1); }
   });
-  renderQuestions();
+
+  // Events
+  list.querySelectorAll('[data-toggle]').forEach(el =>
+    el.addEventListener('click', async () => {
+      const id = el.dataset.toggle;
+      expandedId = expandedId === id ? null : id;
+      if (expandedId) await incrementQuestionViews(id);
+      renderQuestions();
+      if (expandedId) setTimeout(() => document.getElementById('qi-'+expandedId)?.scrollIntoView({behavior:'smooth',block:'nearest'}), 100);
+    })
+  );
+
+  list.querySelectorAll('[data-upvote]').forEach(btn =>
+    btn.addEventListener('click', async e => {
+      e.stopPropagation();
+      if (!currentUser) { toast('Login to vote','error'); return; }
+      await upvoteAnswer(btn.dataset.upvote, btn.dataset.aid, currentUser.uid);
+      allQuestions = await getQuestions();
+      renderQuestions();
+    })
+  );
+
+  list.querySelectorAll('[data-best]').forEach(btn =>
+    btn.addEventListener('click', async e => {
+      e.stopPropagation();
+      await markBestAnswer(btn.dataset.best, btn.dataset.aid, allQuestions.find(x=>x.id===btn.dataset.best)?.askerId, currentUser?.uid);
+      toast('Marked as best! ✅','success');
+      allQuestions = await getQuestions();
+      renderQuestions();
+    })
+  );
+
+  list.querySelectorAll('[data-post-ans]').forEach(btn =>
+    btn.addEventListener('click', async e => {
+      e.stopPropagation();
+      if (!currentUser) { toast('Login to answer','error'); location.href='login.html'; return; }
+      const qid = btn.dataset.postAns;
+      const ta  = document.getElementById('ans-'+qid);
+      const txt = ta?.value.trim();
+      if (!txt) { toast('Write an answer first','error'); return; }
+      btn.disabled = true; btn.textContent = 'Posting…';
+      await addAnswer(qid, {
+        id: genId(), text: txt,
+        userId: currentUser.uid,
+        userName: currentUserData?.name || currentUser.displayName || 'Student',
+        date: new Date().toISOString(), votes: [], isBest: false
+      });
+      await addPoints(currentUser.uid, 3);
+      toast('Answer posted! +3 pts 🎉','success');
+      allQuestions = await getQuestions();
+      renderQuestions();
+    })
+  );
+
+  list.querySelectorAll('[data-delq]').forEach(btn =>
+    btn.addEventListener('click', async e => {
+      e.stopPropagation();
+      if (!confirm('Delete this question?')) return;
+      await deleteQuestion(btn.dataset.delq);
+      toast('Question deleted.','info');
+      expandedId = null;
+      allQuestions = await getQuestions();
+      renderQuestions();
+    })
+  );
 }
 
-function markBest(qid, aid) {
-  const u = getCurrentUser();
-  if (!u) return;
-  updateQuestion(qid, q => {
-    if (q.askerId !== u.id) return;
-    q.answers.forEach(a => a.isBest = (a.id === aid));
-  });
-  toast('Marked as best answer! ✅', 'success');
-  renderQuestions();
-}
-
-function submitAnswer(qid) {
-  const u = getCurrentUser();
-  if (!u) { toast('Please login to answer','error'); location.href='login.html'; return; }
-  const textarea = document.getElementById('ans-'+qid);
-  const text = textarea ? textarea.value.trim() : '';
-  if (!text) { toast('Please write an answer first','error'); return; }
-
-  updateQuestion(qid, q => {
-    q.answers.push({
-      id: genId(), text, userId: u.id, userName: u.name,
-      date: Date.now(), votes: [], isBest: false
-    });
-  });
-  addPoints(u.id, 3);
-  toast('Answer posted! You earned 3 points 🎉', 'success');
-  renderQuestions();
-}
-
+// Ask modal
 function openAskModal() {
-  if (!requireAuth()) return;
+  if (!currentUser) { toast('Please login first','error'); location.href='login.html'; return; }
   ['a-title','a-desc','a-tags'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('a-subj').value = '';
+  document.getElementById('a-img-preview').style.display = 'none';
   document.getElementById('a-err').classList.remove('show');
   openModal('ask-modal');
 }
 
-function submitQuestion() {
-  const u = getCurrentUser();
-  if (!u) return;
+document.getElementById('ask-btn').addEventListener('click', openAskModal);
+
+document.getElementById('a-submit').addEventListener('click', async () => {
   const title = document.getElementById('a-title').value.trim();
   const subj  = document.getElementById('a-subj').value;
   const desc  = document.getElementById('a-desc').value.trim();
   const tags  = document.getElementById('a-tags').value.split(',').map(t=>t.trim()).filter(Boolean);
   const errEl = document.getElementById('a-err');
   errEl.classList.remove('show');
+  if (!title) { errEl.textContent='Add a title.'; errEl.classList.add('show'); return; }
+  if (!subj)  { errEl.textContent='Select a subject.'; errEl.classList.add('show'); return; }
+  if (!desc)  { errEl.textContent='Describe your question.'; errEl.classList.add('show'); return; }
 
-  if (!title) { errEl.textContent='Please add a question title.'; errEl.classList.add('show'); return; }
-  if (!subj)  { errEl.textContent='Please select a subject.'; errEl.classList.add('show'); return; }
-  if (!desc)  { errEl.textContent='Please describe your question.'; errEl.classList.add('show'); return; }
+  const btn = document.getElementById('a-submit');
+  btn.disabled = true; btn.textContent = 'Posting…';
 
-  addQuestion({
-    id: genId(), title, description: desc, subject: subj, tags,
-    askerId: u.id, askerName: u.name, date: Date.now(), views: 0, answers: []
+  let imageUrl = '';
+  const imgFile = document.getElementById('a-image').files[0];
+  if (imgFile) {
+    imageUrl = await uploadImageToImgbb(imgFile);
+    if (!imageUrl) { btn.disabled=false; btn.textContent='Post Question'; return; }
+  }
+
+  await addQuestion({
+    title, description: desc, subject: subj, tags, imageUrl,
+    askerId: currentUser.uid,
+    askerName: currentUserData?.name || currentUser.displayName || 'Student',
+    answers: [], views: 0
   });
-  addPoints(u.id, 5);
+  await addPoints(currentUser.uid, 5);
   closeModal('ask-modal');
-  toast('Question posted! You earned 5 points 🎉', 'success');
+  toast('Question posted! +5 pts 🎉','success');
+  btn.disabled=false; btn.textContent='Post Question';
   expandedId = null;
+  allQuestions = await getQuestions();
   renderQuestions();
-}
+});
 
-renderQuestions();
-// If focusId, auto-expand
-if (focusId) setTimeout(() => { expandedId = focusId; renderQuestions(); }, 200);
+loadQuestions();
 </script>
 </body>
 </html>
