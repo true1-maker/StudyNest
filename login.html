@@ -20,7 +20,7 @@
     <button class="auth-tab" id="tab-signup" onclick="switchTab('signup')">Create Account</button>
   </div>
 
-  <!-- LOGIN FORM -->
+  <!-- LOGIN -->
   <div id="form-login">
     <div class="form-group">
       <label class="form-label">Email Address</label>
@@ -28,19 +28,13 @@
     </div>
     <div class="form-group">
       <label class="form-label">Password</label>
-      <input class="form-control" type="password" id="l-pass" placeholder="Enter password" autocomplete="current-password"/>
+      <input class="form-control" type="password" id="l-pass" placeholder="Enter password"/>
     </div>
     <div class="form-error" id="l-err"></div>
-    <button class="btn btn-primary btn-full btn-lg" style="margin-top:8px" onclick="doLogin()">Login →</button>
-
-    <div class="demo-box">
-      <strong>🎯 Try Demo Account:</strong><br/>
-      Email: <strong>rahim@demo.com</strong><br/>
-      Password: <strong>demo123</strong>
-    </div>
+    <button class="btn btn-primary btn-full btn-lg" style="margin-top:8px" id="login-btn">Login →</button>
   </div>
 
-  <!-- SIGNUP FORM -->
+  <!-- SIGNUP -->
   <div id="form-signup" style="display:none">
     <div class="form-row">
       <div class="form-group">
@@ -61,24 +55,24 @@
     </div>
     <div class="form-group">
       <label class="form-label">Institution</label>
-      <input class="form-control" type="text" id="s-inst" placeholder="e.g. Dhaka College, BUET, RUET"/>
+      <input class="form-control" type="text" id="s-inst" placeholder="e.g. Dhaka College, BUET"/>
     </div>
     <div class="form-group">
       <label class="form-label">Email Address *</label>
-      <input class="form-control" type="email" id="s-email" placeholder="your@email.com" autocomplete="email"/>
+      <input class="form-control" type="email" id="s-email" placeholder="your@email.com"/>
     </div>
     <div class="form-row">
       <div class="form-group">
         <label class="form-label">Password *</label>
-        <input class="form-control" type="password" id="s-pass" placeholder="Min. 6 characters"/>
+        <input class="form-control" type="password" id="s-pass" placeholder="Min. 6 chars"/>
       </div>
       <div class="form-group">
-        <label class="form-label">Confirm Password *</label>
-        <input class="form-control" type="password" id="s-pass2" placeholder="Repeat password"/>
+        <label class="form-label">Confirm *</label>
+        <input class="form-control" type="password" id="s-pass2" placeholder="Repeat"/>
       </div>
     </div>
     <div class="form-error" id="s-err"></div>
-    <button class="btn btn-green btn-full btn-lg" style="margin-top:8px" onclick="doSignup()">Create Account →</button>
+    <button class="btn btn-green btn-full btn-lg" style="margin-top:8px" id="signup-btn">Create Account →</button>
   </div>
 
   <div style="text-align:center;margin-top:20px;font-size:.8rem;color:var(--text-3)">
@@ -87,39 +81,53 @@
 </div>
 
 <div id="toast-container"></div>
-<script src="js/main.js"></script>
-<script src="js/auth.js"></script>
-<script>
-seedData();
-// Redirect if already logged in
-if (getCurrentUser()) location.href = getUrlParam('next') || 'index.html';
+
+<script type="module">
+import { fbLogin, fbSignup, onAuthChange } from './Js/firebase.js';
+import { toast, getUrlParam } from './Js/main.js';
+
+// If already logged in → redirect
+onAuthChange(user => {
+  if (user) location.href = getUrlParam('next') || 'index.html';
+});
 
 function switchTab(t) {
   document.getElementById('tab-login').classList.toggle('active', t==='login');
   document.getElementById('tab-signup').classList.toggle('active', t==='signup');
-  document.getElementById('form-login').style.display = t==='login' ? 'block' : 'none';
+  document.getElementById('form-login').style.display  = t==='login'  ? 'block' : 'none';
   document.getElementById('form-signup').style.display = t==='signup' ? 'block' : 'none';
 }
+window.switchTab = switchTab;
 
 function showErr(id, msg) {
   const el = document.getElementById(id);
-  el.textContent = msg;
-  el.classList.add('show');
+  el.textContent = msg; el.classList.add('show');
 }
 function clearErr(id) { document.getElementById(id).classList.remove('show'); }
 
-function doLogin() {
+// LOGIN
+document.getElementById('login-btn').addEventListener('click', async () => {
   clearErr('l-err');
   const email = document.getElementById('l-email').value.trim();
   const pass  = document.getElementById('l-pass').value;
   if (!email || !pass) { showErr('l-err','Please fill in all fields.'); return; }
-  const res = login(email, pass);
-  if (!res.ok) { showErr('l-err', res.err); return; }
-  toast('Welcome back, ' + res.user.name + '! 👋');
-  setTimeout(() => location.href = getUrlParam('next') || 'index.html', 800);
-}
+  const btn = document.getElementById('login-btn');
+  btn.disabled = true; btn.textContent = 'Logging in…';
+  try {
+    await fbLogin(email, pass);
+    toast('Welcome back! 👋', 'success');
+    setTimeout(() => location.href = getUrlParam('next') || 'index.html', 800);
+  } catch(e) {
+    const msg = e.code === 'auth/invalid-credential' ? 'Invalid email or password.'
+              : e.code === 'auth/too-many-requests'  ? 'Too many attempts. Try later.'
+              : 'Login failed. Try again.';
+    showErr('l-err', msg);
+    btn.disabled = false; btn.textContent = 'Login →';
+  }
+});
 
-function doSignup() {
+// SIGNUP
+document.getElementById('signup-btn').addEventListener('click', async () => {
   clearErr('s-err');
   const name  = document.getElementById('s-name').value.trim();
   const inst  = document.getElementById('s-inst').value.trim();
@@ -127,27 +135,31 @@ function doSignup() {
   const email = document.getElementById('s-email').value.trim();
   const pass  = document.getElementById('s-pass').value;
   const pass2 = document.getElementById('s-pass2').value;
-  if (!name || !email || !pass) { showErr('s-err','Please fill in all required fields.'); return; }
-  if (pass !== pass2) { showErr('s-err','Passwords do not match.'); return; }
-  const res = signup(name, email, pass, inst, cls);
-  if (!res.ok) { showErr('s-err', res.err); return; }
-  toast('Account created! Welcome to StudyNest 🎉', 'success');
-  setTimeout(() => location.href = getUrlParam('next') || 'index.html', 900);
-}
-
-// Enter key support
-document.addEventListener('keydown', e => {
-  if (e.key !== 'Enter') return;
-  if (document.getElementById('form-login').style.display !== 'none') doLogin();
-  else doSignup();
+  if (!name || !email || !pass) { showErr('s-err','Fill in all required fields.'); return; }
+  if (pass !== pass2)           { showErr('s-err','Passwords do not match.'); return; }
+  if (pass.length < 6)          { showErr('s-err','Password must be at least 6 characters.'); return; }
+  const btn = document.getElementById('signup-btn');
+  btn.disabled = true; btn.textContent = 'Creating account…';
+  try {
+    await fbSignup(name, email, pass, inst, cls);
+    toast('Account created! Welcome to StudyNest 🎉', 'success');
+    setTimeout(() => location.href = getUrlParam('next') || 'index.html', 900);
+  } catch(e) {
+    const msg = e.code === 'auth/email-already-in-use' ? 'Email is already registered.'
+              : e.code === 'auth/weak-password'        ? 'Password is too weak.'
+              : 'Signup failed. Try again.';
+    showErr('s-err', msg);
+    btn.disabled = false; btn.textContent = 'Create Account →';
+  }
 });
 
-// Toast container init
-if (!document.getElementById('toast-container')) {
-  const tc = document.createElement('div');
-  tc.id = 'toast-container';
-  document.body.appendChild(tc);
-}
+// Enter key
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  if (document.getElementById('form-login').style.display !== 'none')
+    document.getElementById('login-btn').click();
+  else document.getElementById('signup-btn').click();
+});
 </script>
 </body>
 </html>
